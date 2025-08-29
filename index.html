@@ -9,7 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Styles remain unchanged from your original design */
+        /* Simplified design without glass morphism */
         :root {
             --primary-color: #4361ee;
             --secondary-color: #3a0ca3;
@@ -19,36 +19,31 @@
             --danger-color: #e71d36;
             --text-color: #2b2d42;
             --light-text: #8d99ae;
-            --bg-color: #f8f9fa;
-            --card-bg: rgba(255, 255, 255, 0.95);
-            --card-border: rgba(255, 255, 255, 0.98);
-            --shadow-color: rgba(0, 0, 0, 0.08);
-            --input-bg: rgba(255, 255, 255, 0.92);
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --card-border: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --input-bg: #ffffff;
             --toggle-bg: #e0e0e0;
             --toggle-handle: #fff;
-            --file-row-bg: rgba(255, 255, 255, 0.92);
-            --file-row-hover: rgba(67, 97, 238, 0.08);
+            --file-row-bg: #ffffff;
+            --file-row-hover: #f5f7fa;
             --font-main: 'Segoe UI', system-ui, sans-serif;
-            --transition: all 0.3s ease;
-            --glass-bg: rgba(255, 255, 255, 0.2);
-            --glass-border: rgba(255, 255, 255, 0.3);
-            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+            --transition: all 0.2s ease;
         }
         .dark-theme {
             --primary-color: #4895ef;
             --secondary-color: #4361ee;
             --text-color: #edf2f4;
             --light-text: #bdc3c7;
-            --bg-color: #121212;
-            --card-bg: rgba(30, 30, 30, 0.95);
-            --card-border: rgba(60, 60, 60, 0.98);
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --card-border: #3d3d3d;
             --shadow-color: rgba(0, 0, 0, 0.3);
-            --input-bg: rgba(40, 40, 40, 0.92);
+            --input-bg: #252525;
             --toggle-bg: #333;
-            --file-row-bg: rgba(40, 40, 40, 0.85);
-            --file-row-hover: rgba(72, 149, 239, 0.15);
-            --glass-bg: rgba(0, 0, 0, 0.2);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --file-row-bg: #2d2d2d;
+            --file-row-hover: #383838;
         }
         * {
             margin: 0;
@@ -58,19 +53,12 @@
         }
         body {
             font-family: var(--font-main);
-            background: linear-gradient(135deg, #1a2980 0%, #26d0ce 100%);
+            background-color: var(--bg-color);
             color: var(--text-color);
-            background-attachment: fixed;
             min-height: 100vh;
             padding: 20px;
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
             line-height: 1.6;
-        }
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+            overflow-x: hidden;
         }
         .container {
             max-width: 1200px;
@@ -82,11 +70,10 @@
             align-items: center;
             padding: 20px 30px;
             margin-bottom: 30px;
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
+            background-color: var(--card-bg);
             border-radius: 16px;
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--glass-shadow);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 4px 12px var(--shadow-color);
         }
         .logo {
             display: flex;
@@ -103,18 +90,17 @@
             justify-content: center;
             color: white;
             font-size: 1.5rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
         .logo-text h1 {
             font-size: 1.8rem;
             font-weight: 700;
-            color: white;
+            color: var(--primary-color);
             margin-bottom: 4px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         .logo-text p {
             font-size: 1rem;
-            color: rgba(255, 255, 255, 0.8);
+            color: var(--light-text);
             font-weight: 500;
         }
         .header-controls {
@@ -157,17 +143,11 @@
         }
         .card {
             background: var(--card-bg);
-            backdrop-filter: blur(12px);
             border-radius: 16px;
             border: 1px solid var(--card-border);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px var(--shadow-color);
             padding: 30px;
             margin-bottom: 30px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
         }
         .card-header {
             display: flex;
@@ -175,10 +155,7 @@
             align-items: center;
             margin-bottom: 25px;
             padding-bottom: 15px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        }
-        .dark-theme .card-header {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--card-border);
         }
         .card h2 {
             color: var(--primary-color);
@@ -210,12 +187,12 @@
         select {
             padding: 14px 16px;
             border-radius: 12px;
-            border: 1px solid rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--card-border);
             background: var(--input-bg);
             color: var(--text-color);
             font-size: 1rem;
             font-family: var(--font-main);
-            box-shadow: 0 4px 8px var(--shadow-color);
+            box-shadow: 0 2px 4px var(--shadow-color);
             cursor: pointer;
             appearance: none;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
@@ -282,8 +259,8 @@
             font-weight: bold;
         }
         .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 15px var(--shadow-color);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px var(--shadow-color);
         }
         .btn:active {
             transform: translateY(1px);
@@ -296,6 +273,10 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            max-height: 70vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
         }
         .file-row {
             background: var(--file-row-bg);
@@ -305,21 +286,17 @@
             grid-template-columns: auto 1fr auto auto;
             align-items: center;
             gap: 18px;
-            box-shadow: 0 4px 8px var(--shadow-color);
-            transition: var(--transition);
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(0, 0, 0, 0.03);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            border: 1px solid var(--card-border);
         }
         .dark-theme .file-row {
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
         }
         .file-row:hover {
             background: var(--file-row-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px var(--shadow-color);
         }
         .file-row.selected {
-            background: rgba(67, 97, 238, 0.12);
+            background: rgba(67, 97, 238, 0.1);
             border-left: 3px solid var(--primary-color);
         }
         .file-icon {
@@ -386,10 +363,10 @@
             justify-content: center;
             text-decoration: none;
             background: rgba(67, 97, 238, 0.1);
+            -webkit-tap-highlight-color: transparent;
         }
         .file-actions a:hover, .file-actions button:hover {
             background: rgba(67, 97, 238, 0.2);
-            transform: scale(1.1);
         }
         .checkbox-container {
             display: flex;
@@ -409,14 +386,13 @@
             flex-direction: column;
             gap: 12px;
             z-index: 1000;
+            pointer-events: none;
         }
         .toast {
             padding: 16px 22px;
             border-radius: 12px;
             background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--card-border);
-            box-shadow: 0 6px 16px var(--shadow-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
             display: flex;
             align-items: center;
             gap: 16px;
@@ -424,6 +400,8 @@
             opacity: 0;
             transform: translateX(100%);
             animation: toastIn 0.5s forwards, toastOut 0.5s forwards 2.5s;
+            pointer-events: all;
+            border-left: 4px solid;
         }
         @keyframes toastIn {
             to {
@@ -437,20 +415,20 @@
                 transform: translateX(100%);
             }
         }
-        .toast i {
-            font-size: 1.6rem;
-        }
         .toast.success {
             color: var(--success-color);
-            border-left: 4px solid var(--success-color);
+            border-left-color: var(--success-color);
         }
         .toast.error {
             color: var(--danger-color);
-            border-left: 4px solid var(--danger-color);
+            border-left-color: var(--danger-color);
         }
         .toast.warning {
             color: var(--warning-color);
-            border-left: 4px solid var(--warning-color);
+            border-left-color: var(--warning-color);
+        }
+        .toast i {
+            font-size: 1.6rem;
         }
         .toast-content {
             flex: 1;
@@ -568,8 +546,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.7);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -652,7 +629,6 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            backdrop-filter: blur(5px);
             z-index: 100;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
@@ -671,7 +647,6 @@
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -773,6 +748,7 @@
         .retry-section {
             text-align: center;
             margin-top: 20px;
+            display: none;
         }
         .retry-btn {
             background: var(--warning-color);
@@ -800,6 +776,7 @@
             max-height: 150px;
             overflow-y: auto;
             color: var(--danger-color);
+            display: none;
         }
         /* Progress bar styles */
         .progress-container {
@@ -827,6 +804,18 @@
         .file-progress .percentage {
             font-weight: 600;
             color: var(--primary-color);
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .toast-container {
+                bottom: 15px;
+                right: 15px;
+                left: 15px;
+            }
+            .toast {
+                max-width: none;
+            }
         }
     </style>
 </head>
@@ -925,13 +914,13 @@
                             </div>
                         </div>
                         
-                        <div class="retry-section" id="retrySection" style="display: none;">
+                        <div class="retry-section" id="retrySection">
                             <button class="retry-btn" id="retryBtn">
                                 <i class="fas fa-redo"></i> Retry Loading
                             </button>
                         </div>
                         
-                        <div class="debug-info" id="debugInfo" style="display: none;">
+                        <div class="debug-info" id="debugInfo">
                             <strong>Debug Information:</strong>
                             <div id="debugContent"></div>
                         </div>
@@ -1009,11 +998,20 @@
         const REPO_OWNER = '11UCRES';
         const REPO_NAME = 'cse';
         const BOT_TOKEN = '7954499196:AAF7YiojzLccNyFe-wHDBueJMLVnal-9WhM';
-        const GITHUB_TOKEN = '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';
+        const GITHUB_TOKEN = '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';
         let telegramUserId = null;
         let isTelegramConnected = false;
         let selectedFiles = [];
         let useAuth = false;
+        
+        // Virtual scrolling variables
+        let visibleFileRange = { start: 0, end: 10 }; // Show 10 files at a time on mobile
+        let allFiles = [];
+        let fileObserver = null;
+        let isFetching = false;
+        
+        // Detect mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         // Debug logging function
         function debugLog(message) {
@@ -1095,70 +1093,15 @@
             updateSelectedCount();
         }
         
-        // Enhanced GitHub API request function with fallback authentication
+        // GitHub API request function with token authentication
         async function fetchGitHubAPI(endpoint) {
             const url = `https://api.github.com${endpoint}`;
             const headers = {
-                'Accept': 'application/vnd.github.v3+json'
+                'Accept': 'application/vnd.github.v3+json',
+                'Authorization': `token ${GITHUB_TOKEN}`
             };
             
-            // First, try without authentication
-            debugLog(`Trying unauthenticated request to: ${url}`);
-            
-            try {
-                const response = await fetch(url, { headers });
-                debugLog(`No-auth response status: ${response.status} ${response.statusText}`);
-                
-                // Handle rate limiting
-                if (response.status === 403) {
-                    const rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
-                    const rateLimitReset = response.headers.get('X-RateLimit-Reset');
-                    
-                    debugLog(`Rate limit remaining: ${rateLimitRemaining}`);
-                    debugLog(`Rate limit reset: ${new Date(parseInt(rateLimitReset) * 1000).toLocaleString()}`);
-                    
-                    if (rateLimitRemaining === '0') {
-                        // Rate limit exceeded, try with authentication if token is available
-                        if (GITHUB_TOKEN) {
-                            debugLog(`Rate limit exceeded, trying with authentication`);
-                            return fetchWithAuth(url, headers);
-                        } else {
-                            const resetTime = new Date(parseInt(rateLimitReset) * 1000);
-                            throw new Error(`GitHub API rate limit exceeded. Try again after ${resetTime.toLocaleTimeString()}`);
-                        }
-                    }
-                }
-                
-                if (!response.ok) {
-                    let errorData;
-                    try {
-                        errorData = await response.json();
-                        debugLog(`Error response: ${JSON.stringify(errorData)}`);
-                    } catch (e) {
-                        debugLog(`Failed to parse error response: ${e.message}`);
-                        errorData = { message: response.statusText };
-                    }
-                    throw new Error(errorData.message || `GitHub API error: ${response.status} ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                debugLog(`Successfully fetched data without auth: ${Array.isArray(data) ? `${data.length} items` : 'object'}`);
-                useAuth = false;
-                return data;
-            } catch (error) {
-                // If we haven't tried with auth yet and the error is rate limiting, try with auth
-                if (error.message.includes('rate limit exceeded') && GITHUB_TOKEN) {
-                    debugLog(`Rate limit exceeded, trying with authentication`);
-                    return fetchWithAuth(url, headers);
-                }
-                throw error;
-            }
-        }
-        
-        // Helper function to make authenticated requests
-        async function fetchWithAuth(url, headers) {
-            headers['Authorization'] = `token ${GITHUB_TOKEN}`;
-            debugLog(`Trying authenticated request to: ${url}`);
+            debugLog(`Making authenticated request to: ${url}`);
             
             try {
                 const response = await fetch(url, { headers });
@@ -1180,7 +1123,7 @@
                 
                 // Handle bad credentials
                 if (response.status === 401) {
-                    throw new Error('Bad credentials');
+                    throw new Error('Invalid GitHub token. Please check your authentication token.');
                 }
                 
                 if (!response.ok) {
@@ -1197,15 +1140,33 @@
                 
                 const data = await response.json();
                 debugLog(`Successfully fetched data with auth: ${Array.isArray(data) ? `${data.length} items` : 'object'}`);
-                useAuth = true;
                 return data;
             } catch (error) {
-                if (error.message === 'Bad credentials') {
+                if (error.message === 'Bad credentials' || error.message.includes('401')) {
                     debugLog(`Bad credentials, cannot use authentication`);
                     throw new Error('GitHub token is invalid or has been revoked');
                 }
                 throw error;
             }
+        }
+        
+        // Retry button handler
+        retryBtn.addEventListener('click', () => {
+            fetchGitHubStructure();
+        });
+        
+        // Populate a select dropdown with options
+        function populateSelect(selectElement, options) {
+            while (selectElement.options.length > 1) {
+                selectElement.remove(1);
+            }
+            
+            options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                selectElement.appendChild(optionElement);
+            });
         }
         
         // Fetch folder structure from GitHub with better error handling
@@ -1299,25 +1260,6 @@
             }
         }
         
-        // Retry button handler
-        retryBtn.addEventListener('click', () => {
-            fetchGitHubStructure();
-        });
-        
-        // Populate a select dropdown with options
-        function populateSelect(selectElement, options) {
-            while (selectElement.options.length > 1) {
-                selectElement.remove(1);
-            }
-            
-            options.forEach(option => {
-                const optionElement = document.createElement('option');
-                optionElement.value = option;
-                optionElement.textContent = option;
-                selectElement.appendChild(optionElement);
-            });
-        }
-        
         // Fetch files based on selections
         async function fetchFiles() {
             if (!semesterSelect.value || !examTypeSelect.value || !courseSelect.value) {
@@ -1345,7 +1287,187 @@
             }
         }
         
-        // Display files in the UI
+        // Setup virtual scrolling
+        function setupVirtualScrolling() {
+            // Clean up existing observer if any
+            if (fileObserver) {
+                fileObserver.disconnect();
+            }
+            
+            fileObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const index = parseInt(entry.target.dataset.index);
+                        if (index >= visibleFileRange.end - 5 && index < allFiles.length - 1) {
+                            // User is scrolling near the bottom, load more files
+                            loadMoreFiles();
+                        }
+                    }
+                });
+            }, { 
+                root: fileList,
+                rootMargin: '200px',
+                threshold: 0.1
+            });
+            
+            return fileObserver;
+        }
+        
+        // Load more files when scrolling
+        function loadMoreFiles() {
+            if (isFetching) return;
+            
+            isFetching = true;
+            const newEnd = Math.min(visibleFileRange.end + 10, allFiles.length);
+            if (newEnd > visibleFileRange.end) {
+                visibleFileRange.end = newEnd;
+                renderVisibleFiles();
+            }
+            
+            // Reset fetching flag after a delay
+            setTimeout(() => {
+                isFetching = false;
+            }, 300);
+        }
+        
+        // Render only visible files
+        function renderVisibleFiles() {
+            const fragment = document.createDocumentFragment();
+            
+            // Clear current list but keep the placeholder if no files
+            if (allFiles.length === 0) {
+                fileList.innerHTML = `
+                    <div class="placeholder">
+                        <i class="fas fa-file-exclamation"></i>
+                        <p>No resources found for your selection</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Only render files in the visible range
+            for (let i = visibleFileRange.start; i < visibleFileRange.end && i < allFiles.length; i++) {
+                const file = allFiles[i];
+                const fileElement = createFileElement(file, i);
+                fragment.appendChild(fileElement);
+            }
+            
+            fileList.innerHTML = '';
+            fileList.appendChild(fragment);
+            
+            // Setup observers for the newly added elements
+            const fileObserver = setupVirtualScrolling();
+            document.querySelectorAll('.file-row').forEach((row, index) => {
+                row.dataset.index = index;
+                fileObserver.observe(row);
+            });
+        }
+        
+        // Create file element with optimized event listeners
+        function createFileElement(file, index) {
+            const isLarge = file.size > 20 * 1024 * 1024; // 20MB
+            const fileSize = formatFileSize(file.size);
+            const fileUrl = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${file.path}${encodeURIComponent(file.name)}`;
+            
+            const fileType = getFileType(file.name);
+            const iconClass = getFileIconClass(fileType);
+            
+            const showActions = !isTelegramConnected;
+            
+            const fileRow = document.createElement('div');
+            fileRow.className = 'file-row';
+            fileRow.dataset.index = index;
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'file-checkbox';
+            checkbox.id = `file-${file.sha}`;
+            checkbox.dataset.url = fileUrl;
+            checkbox.dataset.name = file.name;
+            checkbox.dataset.size = file.size;
+            if (isLarge) checkbox.dataset.large = 'true';
+            
+            const checkboxContainer = document.createElement('div');
+            checkboxContainer.className = 'checkbox-container';
+            checkboxContainer.appendChild(checkbox);
+            
+            const fileIcon = document.createElement('div');
+            fileIcon.className = 'file-icon';
+            fileIcon.innerHTML = `<i class="${iconClass}"></i>`;
+            
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'file-info';
+            
+            const fileName = document.createElement('div');
+            fileName.className = 'file-name';
+            fileName.textContent = file.name;
+            
+            const fileDetails = document.createElement('div');
+            fileDetails.className = 'file-details';
+            fileDetails.innerHTML = `<span class="file-size"><i class="fas fa-database"></i> ${fileSize}</span>`;
+            
+            fileInfo.appendChild(fileName);
+            fileInfo.appendChild(fileDetails);
+            
+            fileRow.appendChild(checkboxContainer);
+            fileRow.appendChild(fileIcon);
+            fileRow.appendChild(fileInfo);
+            
+            if (isLarge) {
+                const fileWarning = document.createElement('div');
+                fileWarning.className = 'file-warning';
+                fileWarning.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Large file (>20MB)';
+                fileRow.appendChild(fileWarning);
+            }
+            
+            if (showActions) {
+                const fileActions = document.createElement('div');
+                fileActions.className = 'file-actions';
+                
+                const downloadBtn = document.createElement('a');
+                downloadBtn.className = 'download-btn';
+                downloadBtn.href = fileUrl;
+                downloadBtn.title = 'Download';
+                downloadBtn.download = '';
+                downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
+                
+                const previewBtn = document.createElement('button');
+                previewBtn.className = 'preview-btn';
+                previewBtn.dataset.url = fileUrl;
+                previewBtn.dataset.name = file.name;
+                previewBtn.title = 'Preview';
+                previewBtn.innerHTML = '<i class="fas fa-eye"></i>';
+                
+                fileActions.appendChild(downloadBtn);
+                fileActions.appendChild(previewBtn);
+                fileRow.appendChild(fileActions);
+                
+                // Use event delegation instead of individual listeners
+                previewBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const url = this.dataset.url;
+                    const fileName = this.dataset.name;
+                    showPreview(url, fileName);
+                });
+            }
+            
+            // Use event delegation for checkbox changes
+            checkbox.addEventListener('change', function(e) {
+                e.stopPropagation();
+                const row = this.closest('.file-row');
+                if (this.checked) {
+                    row.classList.add('selected');
+                } else {
+                    row.classList.remove('selected');
+                }
+                updateSelectedCount();
+            });
+            
+            return fileRow;
+        }
+        
+        // Display files in the UI with virtual scrolling
         function displayFiles(files, path) {
             if (files.length === 0) {
                 fileList.innerHTML = `
@@ -1356,82 +1478,23 @@
                 `;
                 return;
             }
-            fileList.innerHTML = '';
             
-            files.forEach(file => {
-                const isLarge = file.size > 20 * 1024 * 1024; // 20MB
-                const fileSize = formatFileSize(file.size);
-                const fileUrl = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${path}${encodeURIComponent(file.name)}`;
-                
-                const fileType = getFileType(file.name);
-                const iconClass = getFileIconClass(fileType);
-                
-                const showActions = !isTelegramConnected;
-                
-                const fileRow = document.createElement('div');
-                fileRow.className = 'file-row';
-                fileRow.innerHTML = `
-                    <div class="checkbox-container">
-                        <input type="checkbox" class="file-checkbox" id="file-${file.sha}" data-url="${fileUrl}" data-name="${file.name}" ${isLarge ? 'disabled' : ''}>
-                    </div>
-                    <div class="file-icon">
-                        <i class="${iconClass}"></i>
-                    </div>
-                    <div class="file-info">
-                        <div class="file-name">${file.name}</div>
-                        <div class="file-details">
-                            <span class="file-size"><i class="fas fa-database"></i> ${fileSize}</span>
-                        </div>
-                    </div>
-                    ${isLarge ? '<div class="file-warning"><i class="fas fa-exclamation-triangle"></i> Large file</div>' : ''}
-                    ${showActions ? `
-                    <div class="file-actions">
-                        <a href="${fileUrl}" class="download-btn" title="Download" download>
-                            <i class="fas fa-download"></i>
-                        </a>
-                        <button class="preview-btn" data-url="${fileUrl}" data-name="${file.name}" title="Preview">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                    ` : ''}
-                `;
-                
-                fileList.appendChild(fileRow);
-            });
+            // Store all files with path information
+            allFiles = files.map(file => ({
+                ...file,
+                path: path
+            }));
             
-            document.querySelectorAll('.file-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const row = this.closest('.file-row');
-                    if (this.checked) {
-                        row.classList.add('selected');
-                    } else {
-                        row.classList.remove('selected');
-                    }
-                    
-                    updateSelectedCount();
-                });
-            });
-            document.querySelectorAll('.preview-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const url = this.dataset.url;
-                    const fileName = this.dataset.name;
-                    showPreview(url, fileName);
-                });
-            });
+            // Reset visible range based on device
+            visibleFileRange = { 
+                start: 0, 
+                end: isMobile ? 10 : 20 
+            };
             
-            updateSelectedCount();
-        }
-        
-        // Update selected files count
-        function updateSelectedCount() {
-            selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked:not(:disabled)'));
-            selectedCount.textContent = selectedFiles.length;
+            // Render initial batch
+            renderVisibleFiles();
             
-            if (selectedFiles.length > 0) {
-                selectedCount.style.display = 'flex';
-            } else {
-                selectedCount.style.display = 'none';
-            }
+            showToast(`Found ${files.length} resources`, 'success');
         }
         
         // Get file type from extension
@@ -1494,9 +1557,21 @@
             }, 3000);
         }
         
+        // Update selected files count
+        function updateSelectedCount() {
+            selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked'));
+            selectedCount.textContent = selectedFiles.length;
+            
+            if (selectedFiles.length > 0) {
+                selectedCount.style.display = 'flex';
+            } else {
+                selectedCount.style.display = 'none';
+            }
+        }
+        
         // Select all files
         function toggleSelectAll() {
-            const checkboxes = document.querySelectorAll('.file-checkbox:not(:disabled)');
+            const checkboxes = document.querySelectorAll('.file-checkbox');
             const allSelected = Array.from(checkboxes).every(checkbox => checkbox.checked);
             
             checkboxes.forEach(checkbox => {
@@ -1520,20 +1595,10 @@
                 return;
             }
             
-            const validFiles = selectedFiles.filter(checkbox => {
-                const row = checkbox.closest('.file-row');
-                return !row.querySelector('.file-warning');
-            });
-            
-            if (validFiles.length === 0) {
-                showToast('No valid files selected (skip files >20MB)', 'warning');
-                return;
-            }
-            
-            fileCount.textContent = validFiles.length;
+            fileCount.textContent = selectedFiles.length;
             modalFileList.innerHTML = '';
             
-            validFiles.forEach(checkbox => {
+            selectedFiles.forEach(checkbox => {
                 const fileName = checkbox.dataset.name;
                 const listItem = document.createElement('li');
                 listItem.innerHTML = `<i class="fas fa-file"></i> ${fileName}`;
@@ -1542,13 +1607,13 @@
             
             if (isTelegramConnected) {
                 modalTitle.innerHTML = '<i class="fab fa-telegram"></i> Confirm File Transfer';
-                modalMessage.innerHTML = `You are about to send <strong>${validFiles.length} files</strong> to Telegram. This may take a few moments.`;
+                modalMessage.innerHTML = `You are about to send <strong>${selectedFiles.length} files</strong> to Telegram. Large files (>20MB) will be sent as download links.`;
                 confirmAction.innerHTML = '<i class="fab fa-telegram"></i> Send Now';
                 confirmAction.classList.add('btn-telegram');
                 confirmAction.classList.remove('btn-download');
             } else {
                 modalTitle.innerHTML = '<i class="fas fa-download"></i> Confirm Download';
-                modalMessage.innerHTML = `You are about to download <strong>${validFiles.length} files</strong>. Large files may take longer to download.`;
+                modalMessage.innerHTML = `You are about to download <strong>${selectedFiles.length} files</strong>. Large files (>20MB) will be included as download links in a text file.`;
                 confirmAction.innerHTML = '<i class="fas fa-download"></i> Download Now';
                 confirmAction.classList.add('btn-download');
                 confirmAction.classList.remove('btn-telegram');
@@ -1569,36 +1634,71 @@
         }
         
         // Send a file to Telegram via bot API using direct URL method
-        async function sendFileToTelegram(file, userId, progressCallback) {
-            const apiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`;
+        async function sendFileToTelegram(file, userId) {
+            const isLarge = file.size > 20 * 1024 * 1024; // 20MB
             
-            try {
-                debugLog(`Sending file to Telegram: ${file.name}`);
+            if (isLarge) {
+                // For large files, send a message with the download link
+                const apiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
                 
-                const params = new URLSearchParams({
-                    chat_id: userId,
-                    document: file.url,
-                    caption: `Requested from : @iiuccseresourcebot`
-                    //caption: `File: ${file.name}`
-                });
-                
-                const response = await fetch(`${apiUrl}?${params}`);
-                const result = await response.json();
-                
-                if (!result.ok) {
-                    let errorMsg = result.description || 'Telegram API error';
-                    if (result.error_code === 403) {
-                        errorMsg = 'Forbidden: Please start the bot by sending /start to the bot first.';
+                try {
+                    debugLog(`Sending large file info to Telegram: ${file.name}`);
+                    
+                    const params = new URLSearchParams({
+                        chat_id: userId,
+                        text: `The file "${file.name}" is too large to send directly.\n\nYou can download it from this link:\n${file.url}\n\nRequested from: @iiuccseresourcebot`,
+                        parse_mode: 'HTML'
+                    });
+                    
+                    const response = await fetch(`${apiUrl}?${params}`);
+                    const result = await response.json();
+                    
+                    if (!result.ok) {
+                        let errorMsg = result.description || 'Telegram API error';
+                        if (result.error_code === 403) {
+                            errorMsg = 'Forbidden: Please start the bot by sending /start to the bot first.';
+                        }
+                        debugLog(`Telegram API error: ${errorMsg}`);
+                        throw new Error(errorMsg);
                     }
-                    debugLog(`Telegram API error: ${errorMsg}`);
-                    throw new Error(errorMsg);
+                    
+                    debugLog(`Successfully sent large file info: ${file.name}`);
+                    return result;
+                } catch (error) {
+                    debugLog(`Error sending large file info for ${file.name}: ${error.message}`);
+                    throw new Error(`Failed to send info for ${file.name}: ${error.message}`);
                 }
+            } else {
+                // Original code for regular files
+                const apiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`;
                 
-                debugLog(`Successfully sent file: ${file.name}`);
-                return result;
-            } catch (error) {
-                debugLog(`Error sending ${file.name}: ${error.message}`);
-                throw new Error(`Failed to send ${file.name}: ${error.message}`);
+                try {
+                    debugLog(`Sending file to Telegram: ${file.name}`);
+                    
+                    const params = new URLSearchParams({
+                        chat_id: userId,
+                        document: file.url,
+                        caption: `Requested from : @iiuccseresourcebot`
+                    });
+                    
+                    const response = await fetch(`${apiUrl}?${params}`);
+                    const result = await response.json();
+                    
+                    if (!result.ok) {
+                        let errorMsg = result.description || 'Telegram API error';
+                        if (result.error_code === 403) {
+                            errorMsg = 'Forbidden: Please start the bot by sending /start to the bot first.';
+                        }
+                        debugLog(`Telegram API error: ${errorMsg}`);
+                        throw new Error(errorMsg);
+                    }
+                    
+                    debugLog(`Successfully sent file: ${file.name}`);
+                    return result;
+                } catch (error) {
+                    debugLog(`Error sending ${file.name}: ${error.message}`);
+                    throw new Error(`Failed to send ${file.name}: ${error.message}`);
+                }
             }
         }
         
@@ -1623,15 +1723,11 @@
         
         // Send files to Telegram with optimized method
         async function sendToTelegram() {
-            const validFiles = selectedFiles.filter(checkbox => {
-                const row = checkbox.closest('.file-row');
-                return !row.querySelector('.file-warning');
-            });
-            
-            const filesToSend = validFiles.map(checkbox => {
+            const filesToSend = selectedFiles.map(checkbox => {
                 return {
                     name: checkbox.dataset.name,
-                    url: checkbox.dataset.url
+                    url: checkbox.dataset.url,
+                    size: parseInt(checkbox.dataset.size)
                 };
             });
             
@@ -1670,7 +1766,7 @@
                 toastContainer.appendChild(progressToast);
                 
                 // Process files with controlled concurrency
-                const maxConcurrent = 5; // Increased concurrency for faster sending
+                const maxConcurrent = isMobile ? 2 : 5; // Reduced concurrency for mobile
                 const processing = [];
                 
                 for (let i = 0; i < filesToSend.length; i++) {
@@ -1731,13 +1827,8 @@
         
         // Download selected files as ZIP
         async function downloadSelectedFiles() {
-            const validFiles = selectedFiles.filter(checkbox => {
-                const row = checkbox.closest('.file-row');
-                return !row.querySelector('.file-warning');
-            });
-            
-            if (validFiles.length === 0) {
-                showToast('No valid files selected', 'error');
+            if (selectedFiles.length === 0) {
+                showToast('No files selected', 'error');
                 return;
             }
             
@@ -1748,26 +1839,74 @@
             
             try {
                 const zip = new JSZip();
+                let largeFilesInfo = "Large files (download separately):\n\n";
+                let hasLargeFiles = false;
                 
-                for (const checkbox of validFiles) {
-                    const fileName = checkbox.dataset.name;
-                    const fileUrl = checkbox.dataset.url;
+                // Process files in batches to avoid memory issues
+                const batchSize = isMobile ? 3 : 5; // Reduced batch size for mobile
+                for (let i = 0; i < selectedFiles.length; i += batchSize) {
+                    const batch = Array.from(selectedFiles).slice(i, i + batchSize);
                     
-                    try {
-                        debugLog(`Downloading file for ZIP: ${fileName}`);
-                        const response = await fetch(fileUrl);
-                        if (!response.ok) throw new Error(`Failed to download ${fileName}`);
+                    const batchPromises = batch.map(async (checkbox) => {
+                        const fileName = checkbox.dataset.name;
+                        const fileUrl = checkbox.dataset.url;
+                        const fileSize = parseInt(checkbox.dataset.size);
+                        const isLarge = fileSize > 20 * 1024 * 1024; // 20MB
                         
-                        const blob = await response.blob();
-                        zip.file(fileName, blob);
-                    } catch (error) {
-                        console.error(`Error downloading ${fileName}:`, error);
-                        showToast(`Failed to download ${fileName}`, 'error');
-                    }
+                        if (isLarge) {
+                            // Add info about large file to the text
+                            largeFilesInfo += `File: ${fileName}\nDownload link: ${fileUrl}\n\n`;
+                            hasLargeFiles = true;
+                        } else {
+                            try {
+                                debugLog(`Downloading file for ZIP: ${fileName}`);
+                                
+                                // Use fetch with timeout for mobile
+                                const controller = new AbortController();
+                                const timeoutId = setTimeout(() => controller.abort(), isMobile ? 20000 : 30000); // Shorter timeout for mobile
+                                
+                                const response = await fetch(fileUrl, { signal: controller.signal });
+                                clearTimeout(timeoutId);
+                                
+                                if (!response.ok) throw new Error(`Failed to download ${fileName}`);
+                                
+                                const blob = await response.blob();
+                                zip.file(fileName, blob);
+                            } catch (error) {
+                                console.error(`Error downloading ${fileName}:`, error);
+                                showToast(`Failed to download ${fileName}`, 'error');
+                            }
+                        }
+                    });
+                    
+                    await Promise.allSettled(batchPromises);
+                    
+                    // Add a small delay between batches to allow UI to update
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 
-                debugLog(`Creating ZIP file with ${validFiles.length} files`);
+                debugLog(`Creating ZIP file with ${selectedFiles.length} files`);
+                
+                // Add info about large files if any
+                if (hasLargeFiles) {
+                    zip.file("LARGE_FILES_INFO.txt", largeFilesInfo);
+                }
+                
+                // Generate ZIP with progress feedback
+                const progressToast = document.createElement('div');
+                progressToast.className = 'toast warning';
+                progressToast.innerHTML = `
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <div class="toast-content">
+                        <h4>Creating ZIP File</h4>
+                        <p>Please wait...</p>
+                    </div>
+                `;
+                toastContainer.appendChild(progressToast);
+                
                 const content = await zip.generateAsync({type: "blob"});
+                
+                progressToast.remove();
                 
                 const url = URL.createObjectURL(content);
                 const a = document.createElement('a');
@@ -1778,7 +1917,11 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                showToast(`${validFiles.length} files downloaded as ZIP`, 'success');
+                if (hasLargeFiles) {
+                    showToast(`Download prepared. Large files info included in LARGE_FILES_INFO.txt`, 'warning');
+                } else {
+                    showToast(`${selectedFiles.length} files downloaded as ZIP`, 'success');
+                }
             } catch (error) {
                 console.error('ZIP creation error:', error);
                 showToast(`Failed to create ZIP: ${error.message}`, 'error');
@@ -1800,26 +1943,44 @@
             initTelegram();
             fetchGitHubStructure();
             
-            searchBtn.addEventListener('click', fetchFiles);
-            selectAllBtn.addEventListener('click', toggleSelectAll);
-            actionBtn.addEventListener('click', showConfirmationModal);
+            // Use event listeners with passive option for better mobile performance
+            searchBtn.addEventListener('click', fetchFiles, { passive: true });
+            selectAllBtn.addEventListener('click', toggleSelectAll, { passive: true });
+            actionBtn.addEventListener('click', showConfirmationModal, { passive: true });
             confirmAction.addEventListener('click', () => {
                 if (isTelegramConnected) {
                     sendToTelegram();
                 } else {
                     downloadSelectedFiles();
                 }
-            });
-            closeModal.addEventListener('click', () => confirmationModal.classList.remove('active'));
-            cancelSend.addEventListener('click', () => confirmationModal.classList.remove('active'));
+            }, { passive: true });
+            closeModal.addEventListener('click', () => confirmationModal.classList.remove('active'), { passive: true });
+            cancelSend.addEventListener('click', () => confirmationModal.classList.remove('active'), { passive: true });
             closePreview.addEventListener('click', () => {
                 previewModal.classList.remove('active');
                 previewIframe.src = '';
-            });
+            }, { passive: true });
+            
+            // Setup virtual scrolling
+            setupVirtualScrolling();
             
             setTimeout(() => {
                 showToast('Welcome to Academic Resource Hub! Select your preferences to find course files.', 'success');
             }, 1000);
+        });
+        
+        // Add cleanup function to prevent memory leaks
+        window.addEventListener('beforeunload', () => {
+            // Clean up IntersectionObserver
+            if (fileObserver) {
+                fileObserver.disconnect();
+            }
+            
+            // Clean up any pending timeouts
+            const highestTimeoutId = setTimeout(";");
+            for (let i = 0; i < highestTimeoutId; i++) {
+                clearTimeout(i);
+            }
         });
     </script>
 </body>
