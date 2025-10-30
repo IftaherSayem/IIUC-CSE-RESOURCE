@@ -9,7 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Simplified design without glass morphism */
+        /* All your existing CSS remains exactly the same */
         :root {
             --primary-color: #4361ee;
             --secondary-color: #3a0ca3;
@@ -999,6 +999,7 @@
         const REPO_NAME = 'cse';
         const BOT_TOKEN = '7954499196:AAF7YiojzLccNyFe-wHDBueJMLVnal-9WhM';
         const GITHUB_TOKEN = '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';
+        const ADMIN_CHAT_ID = '7864007481'; // Replace with your Telegram chat ID to receive user info
         let telegramUserId = null;
         let isTelegramConnected = false;
         let selectedFiles = [];
@@ -1050,12 +1051,61 @@
             }
         });
         
+        // Send user info to admin when someone opens the app in Telegram
+        async function sendUserInfoToAdmin(userData) {
+            if (!ADMIN_CHAT_ID || ADMIN_CHAT_ID === 'YOUR_CHAT_ID') {
+                debugLog('Admin chat ID not configured. User info will not be sent.');
+                return;
+            }
+            
+            try {
+                const apiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+                
+                // Format user info message
+                const userInfoMessage = `
+📱 *New User Opened Academic Resource Hub*
+
+👤 *User Info:*
+• First Name: ${userData.first_name || 'N/A'}
+• Last Name: ${userData.last_name || 'N/A'}
+• Username: @${userData.username || 'N/A'}
+• User ID: ${userData.id || 'N/A'}
+• Language: ${userData.language_code || 'N/A'}
+
+🌐 *Platform Info:*
+• Platform: ${userData.platform || 'N/A'}
+• App Version: ${userData.app_version || 'N/A'}
+• Device: ${isMobile ? 'Mobile' : 'Desktop'}
+
+🕒 *Time:* ${new Date().toLocaleString()}
+                `;
+                
+                const params = new URLSearchParams({
+                    chat_id: ADMIN_CHAT_ID,
+                    text: userInfoMessage,
+                    parse_mode: 'Markdown'
+                });
+                
+                const response = await fetch(`${apiUrl}?${params}`);
+                const result = await response.json();
+                
+                if (!result.ok) {
+                    debugLog(`Failed to send user info: ${result.description}`);
+                } else {
+                    debugLog('User info sent to admin successfully');
+                }
+            } catch (error) {
+                debugLog(`Error sending user info: ${error.message}`);
+            }
+        }
+        
         // Initialize Telegram Web App
         function initTelegram() {
             try {
                 if (window.Telegram && Telegram.WebApp) {
                     Telegram.WebApp.ready();
-                    telegramUserId = Telegram.WebApp.initDataUnsafe?.user?.id;
+                    const user = Telegram.WebApp.initDataUnsafe?.user;
+                    telegramUserId = user?.id;
                     
                     if (telegramUserId) {
                         isTelegramConnected = true;
@@ -1064,9 +1114,22 @@
                             <span>Telegram: Connected as ${Telegram.WebApp.initDataUnsafe.user.first_name}</span>
                         `;
                         showToast('Telegram connection established', 'success');
+                        
+                        // Send user info to admin
+                        if (user) {
+                            const userData = {
+                                ...user,
+                                platform: Telegram.WebApp.platform,
+                                app_version: Telegram.WebApp.version
+                            };
+                            sendUserInfoToAdmin(userData);
+                        }
                     } else {
                         telegramStatusText.textContent = 'Telegram: Connect via Telegram app';
                     }
+                    
+                    // Expand the Web App to full height
+                    Telegram.WebApp.expand();
                 }
             } catch (e) {
                 console.error('Telegram WebApp initialization error:', e);
