@@ -19,7 +19,6 @@ A modern, responsive web application for browsing and downloading university CSE
 
 - Frontend : Html,Tailwind CSS,Js
 - Backend : Github Storage
-nnnn
 
 ### Installation
 
