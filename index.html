@@ -1158,64 +1158,71 @@
         }
         
         // GitHub API request function with token authentication
-        async function fetchGitHubAPI(endpoint) {
-            const url = `https://api.github.com${endpoint}`;
-            // const headers = {
-            //     'Accept': 'application/vnd.github.v3+json',
-            //     'Authorization': `token ${GITHUB_TOKEN}`
-            // };
-            const headers = {
-                'Accept': 'application/vnd.github.v3+json'
-            };
-            debugLog(`Making authenticated request to: ${url}`);
+        // async function fetchGitHubAPI(endpoint) {
+        //     const url = `https://api.github.com${endpoint}`;
+        //     // const headers = {
+        //     //     'Accept': 'application/vnd.github.v3+json',
+        //     //     'Authorization': `token ${GITHUB_TOKEN}`
+        //     // };
+        //     const headers = {
+        //         'Accept': 'application/vnd.github.v3+json'
+        //     };
+        //     debugLog(`Making authenticated request to: ${url}`);
             
-            try {
-                const response = await fetch(url, { headers });
-                debugLog(`Auth response status: ${response.status} ${response.statusText}`);
+        //     try {
+        //         const response = await fetch(url, { headers });
+        //         debugLog(`Auth response status: ${response.status} ${response.statusText}`);
                 
-                // Handle rate limiting
-                if (response.status === 403) {
-                    const rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
-                    const rateLimitReset = response.headers.get('X-RateLimit-Reset');
+        //         // Handle rate limiting
+        //         if (response.status === 403) {
+        //             const rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
+        //             const rateLimitReset = response.headers.get('X-RateLimit-Reset');
                     
-                    debugLog(`Rate limit remaining: ${rateLimitRemaining}`);
-                    debugLog(`Rate limit reset: ${new Date(parseInt(rateLimitReset) * 1000).toLocaleString()}`);
+        //             debugLog(`Rate limit remaining: ${rateLimitRemaining}`);
+        //             debugLog(`Rate limit reset: ${new Date(parseInt(rateLimitReset) * 1000).toLocaleString()}`);
                     
-                    if (rateLimitRemaining === '0') {
-                        const resetTime = new Date(parseInt(rateLimitReset) * 1000);
-                        throw new Error(`GitHub API rate limit exceeded. Try again after ${resetTime.toLocaleTimeString()}`);
-                    }
-                }
+        //             if (rateLimitRemaining === '0') {
+        //                 const resetTime = new Date(parseInt(rateLimitReset) * 1000);
+        //                 throw new Error(`GitHub API rate limit exceeded. Try again after ${resetTime.toLocaleTimeString()}`);
+        //             }
+        //         }
                 
-                // Handle bad credentials
-                if (response.status === 401) {
-                    throw new Error('Invalid GitHub token. Please check your authentication token.');
-                }
+        //         // Handle bad credentials
+        //         if (response.status === 401) {
+        //             throw new Error('Invalid GitHub token. Please check your authentication token.');
+        //         }
                 
-                if (!response.ok) {
-                    let errorData;
-                    try {
-                        errorData = await response.json();
-                        debugLog(`Error response: ${JSON.stringify(errorData)}`);
-                    } catch (e) {
-                        debugLog(`Failed to parse error response: ${e.message}`);
-                        errorData = { message: response.statusText };
-                    }
-                    throw new Error(errorData.message || `GitHub API error: ${response.status} ${response.statusText}`);
-                }
+        //         if (!response.ok) {
+        //             let errorData;
+        //             try {
+        //                 errorData = await response.json();
+        //                 debugLog(`Error response: ${JSON.stringify(errorData)}`);
+        //             } catch (e) {
+        //                 debugLog(`Failed to parse error response: ${e.message}`);
+        //                 errorData = { message: response.statusText };
+        //             }
+        //             throw new Error(errorData.message || `GitHub API error: ${response.status} ${response.statusText}`);
+        //         }
                 
-                const data = await response.json();
-                debugLog(`Successfully fetched data with auth: ${Array.isArray(data) ? `${data.length} items` : 'object'}`);
-                return data;
-            } catch (error) {
-                if (error.message === 'Bad credentials' || error.message.includes('401')) {
-                    debugLog(`Bad credentials, cannot use authentication`);
-                    throw new Error('GitHub token is invalid or has been revoked');
-                }
-                throw error;
+        //         const data = await response.json();
+        //         debugLog(`Successfully fetched data with auth: ${Array.isArray(data) ? `${data.length} items` : 'object'}`);
+        //         return data;
+        //     } catch (error) {
+        //         if (error.message === 'Bad credentials' || error.message.includes('401')) {
+        //             debugLog(`Bad credentials, cannot use authentication`);
+        //             throw new Error('GitHub token is invalid or has been revoked');
+        //         }
+        //         throw error;
+        //     }
+        // }
+        async function fetchGitHubAPI(endpoint) {
+            const response = await fetch(`/.netlify/functions/github?endpoint=${endpoint}`);
+            if (!response.ok) {
+                throw new Error("API Error");
             }
+            return await response.json();
         }
-        
+
         // Retry button handler
         retryBtn.addEventListener('click', () => {
             fetchGitHubStructure();
