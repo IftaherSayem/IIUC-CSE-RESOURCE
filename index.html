@@ -999,7 +999,7 @@
         const REPO_OWNER = '11UCRES';
         const REPO_NAME = 'cse';
         const BOT_TOKEN = '7954499196:AAF7YiojzLccNyFe-wHDBueJMLVnal-9WhM';
-        const GITHUB_TOKEN = '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';
+        // const GITHUB_TOKEN = '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';
         const ADMIN_CHAT_ID = '6623300482';
         let telegramUserId = null;
         let isTelegramConnected = false;
@@ -1160,11 +1160,13 @@
         // GitHub API request function with token authentication
         async function fetchGitHubAPI(endpoint) {
             const url = `https://api.github.com${endpoint}`;
+            // const headers = {
+            //     'Accept': 'application/vnd.github.v3+json',
+            //     'Authorization': `token ${GITHUB_TOKEN}`
+            // };
             const headers = {
-                'Accept': 'application/vnd.github.v3+json',
-                'Authorization': `token ${GITHUB_TOKEN}`
+                'Accept': 'application/vnd.github.v3+json'
             };
-            
             debugLog(`Making authenticated request to: ${url}`);
             
             try {
