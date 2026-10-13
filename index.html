@@ -487,14 +487,56 @@
         }
 
         /* Button 3: Download Selected (Green) */
-        .btn-download-act {
+        .btn-download-act,
+        .btn-download {
             background: var(--green-gradient);
+            color: #ffffff !important;
             box-shadow: var(--green-shadow);
         }
 
-        .btn-download-act:hover {
+        .btn-download-act:hover,
+        .btn-download:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px -2px rgba(16, 185, 129, 0.48);
+        }
+
+        /* Telegram Action Button (Telegram Ocean Blue) */
+        .btn-telegram {
+            background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+            color: #ffffff !important;
+            box-shadow: 0 4px 14px 0 rgba(2, 132, 199, 0.35);
+        }
+
+        .btn-telegram:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px 0 rgba(2, 132, 199, 0.45);
+        }
+
+        /* Secondary / Cancel Button (Neutral subtle pill) */
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569 !important;
+            border: 1.5px solid #cbd5e1;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+            color: #1e293b !important;
+            border-color: #94a3b8;
+            transform: translateY(-1px);
+        }
+
+        .dark-theme .btn-secondary {
+            background: #334155;
+            color: #f8fafc !important;
+            border-color: #475569;
+        }
+
+        .dark-theme .btn-secondary:hover {
+            background: #475569;
+            color: #ffffff !important;
+            border-color: #64748b;
         }
 
         .btn:active {
@@ -819,7 +861,22 @@
         }
 
         .modal-body { margin-bottom: 20px; font-size: 0.92rem; line-height: 1.5; }
-        .modal-buttons { display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+        .modal-buttons .btn {
+            min-height: 42px;
+            height: 42px;
+            padding: 0 22px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 12px;
+        }
         .modal-file-list { max-height: 180px; overflow-y: auto; margin-top: 12px; padding: 8px 12px; background: rgba(0,0,0,0.03); border-radius: 8px; border: 1px solid var(--card-border); font-size: 0.85rem; }
         .modal-file-list li { padding: 6px 0; border-bottom: 1px solid var(--card-border); display: flex; align-items: center; gap: 8px; word-break: break-all; }
         .modal-file-list li:last-child { border-bottom: none; }
@@ -1200,8 +1257,8 @@
             </div>
             <div class="modal-buttons">
                 <button class="btn btn-secondary" id="cancelSend">Cancel</button>
-                <button class="btn" id="confirmAction">
-                    <i class="fab fa-telegram"></i> Send Now
+                <button class="btn btn-download" id="confirmAction">
+                    <i class="fas fa-download"></i> Download Now
                 </button>
             </div>
         </div>
