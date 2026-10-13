@@ -1,0 +1,3 @@
+/acc/ad    /acc/ad/index.html    200
+/acc/ad/*  /acc/ad/index.html    200
+/admin.html /acc/ad              301

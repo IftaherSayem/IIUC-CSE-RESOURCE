@@ -13,20 +13,28 @@ A modern, responsive web application for browsing and downloading university CSE
 - **🌗 Dark / Light Theme** — Toggle between themes with persistent preference
 - **📱 Fully Responsive** — Optimized for mobile, tablet, and desktop viewports
 - **⚡ Fast GitHub-backed Storage** — Resources served directly from GitHub repository via API
+- **🛡️ Secret Admin Panel Route** — Hidden management dashboard located at route `/acc/ad`
+- **📢 Telegram Broadcast System** — Send rich announcements with interactive **Inline Buttons** to all subscribers
+- **🌐 Server-First Hybrid Architecture** — Auto-detects backend server (`server.js`); if server is on, operates via server; if server is offline or errors, seamlessly falls back to the normal direct client system
 
 ## 🛠️ Tech Stack
 
+- Frontend : HTML, Vanilla CSS, Vanilla JS
+- Backend Options : Node.js Server (`server.js`) + Netlify Serverless Functions
+- Storage : GitHub Repository API & Raw CDN
 
-- Frontend : Html,Tailwind CSS,Js
-- Backend : Github Storage
-
-### Installation
+### Running the Project
 
 ```bash
 # Clone the repository
 git clone https://github.com/11UCRES/cse.git
 cd cse
 
+# (Optional) Run the Backend Server
+npm start
+# Server runs on http://localhost:5000 (with health check at /health)
+
+# Or simply open index.html directly (runs in Serverless Fallback mode!)
 ```
 
 ## 🤖 Telegram Integration
