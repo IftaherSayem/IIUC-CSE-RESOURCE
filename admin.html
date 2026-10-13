@@ -1866,8 +1866,7 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
                 .replace(/"/g, '&quot;');
         }
 
-        // Backend Server Integration
-        let SERVER_URL = localStorage.getItem('backend_server_url') || (window.location.port === '5000' ? window.location.origin : 'http://localhost:5000');
+        // Backend Server Integration Status
         let isServerOnline = false;
 
         async function checkAdminServerStatus(force = false) {
