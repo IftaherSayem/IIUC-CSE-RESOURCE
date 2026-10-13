@@ -201,33 +201,30 @@
             flex-shrink: 0;
         }
 
-        /* Pill with Lock icon and Green toggle switch */
+        /* Minimal container for Toggle switch */
         .header-secure-pill {
-            background: rgba(255, 255, 255, 0.16);
-            border: 1.5px solid rgba(255, 255, 255, 0.38);
+            background: rgba(255, 255, 255, 0.18);
+            border: 1.5px solid rgba(255, 255, 255, 0.4);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             border-radius: 30px;
-            padding: 5px 12px 5px 14px;
+            padding: 4px 5px;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            color: #ffffff;
-            font-weight: 600;
-            font-size: 0.82rem;
+            justify-content: center;
             cursor: pointer;
             user-select: none;
             transition: var(--transition);
         }
 
         .header-secure-pill:hover {
-            background: rgba(255, 255, 255, 0.25);
-            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.28);
+            border-color: rgba(255, 255, 255, 0.55);
+            transform: scale(1.04);
         }
 
-        .header-secure-pill i.fa-lock {
-            font-size: 0.8rem;
-            color: #ffffff;
+        .header-secure-pill:active {
+            transform: scale(0.96);
         }
 
         .toggle-pill-switch {
@@ -1075,9 +1072,7 @@
                 font-size: 0.76rem;
             }
             .header-secure-pill {
-                padding: 4px 10px;
-                font-size: 0.76rem;
-                gap: 6px;
+                padding: 3px 4px;
             }
             .toggle-pill-switch {
                 width: 30px;
@@ -1179,9 +1174,6 @@
             .logo-text h1 {
                 font-size: 1.05rem;
             }
-            .header-secure-pill span {
-                display: none;
-            }
         }
     </style>
 </head>
@@ -1215,9 +1207,7 @@
                 </div>
             </div>
             <div class="header-controls">
-                <div class="header-secure-pill" id="themeToggle" role="button" tabindex="0" title="Click to toggle Secure Mode / Dark Theme">
-                    <i class="fas fa-lock"></i>
-                    <span>Secure Access</span>
+                <div class="header-secure-pill" id="themeToggle" role="button" tabindex="0" title="Click to toggle Theme" aria-label="Toggle Theme">
                     <div class="toggle-pill-switch" id="secureToggleSwitch">
                         <span class="toggle-circle"></span>
                     </div>
