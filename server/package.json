@@ -1,0 +1,21 @@
+{
+  "name": "iiuc-cse-backend",
+  "version": "1.0.0",
+  "description": "Standalone Backend API Server for IIUC CSE Academic Resource Hub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "nodejs",
+    "api",
+    "telegram-bot",
+    "backend"
+  ],
+  "author": "Iftaher Sayem",
+  "license": "MIT"
+}
