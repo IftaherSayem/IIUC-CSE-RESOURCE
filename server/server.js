@@ -339,7 +339,7 @@ const server = http.createServer(async (req, res) => {
                     menu_button: menuButton || {
                         type: 'web_app',
                         text: '🟢 Resource Hub',
-                        web_app: { url: 'https://iiuc-cse-resource.netlify.app' }
+                        web_app: { url: 'https://cseresourceofiiuc.netlify.app' }
                     }
                 })
             });
