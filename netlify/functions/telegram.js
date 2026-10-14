@@ -20,7 +20,7 @@ const TMP_STATE_FILE = path.join('/tmp', 'admin_flow_state.json');
 // Ensure tmp directory exists
 try {
     if (!fs.existsSync(TMP_DATA_DIR)) fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
-} catch (e) {}
+} catch (e) { }
 
 // Raw direct HTTPS call to Telegram (bypasses node fetch socket issues with automatic retry)
 function callTelegram(method, params = {}, timeoutMs = 15000) {
@@ -146,7 +146,7 @@ function loadSubscribers() {
             const parsed = JSON.parse(data);
             if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
-    } catch (e) {}
+    } catch (e) { }
 
     try {
         if (fs.existsSync(LOCAL_USERS_FILE)) {
@@ -154,7 +154,7 @@ function loadSubscribers() {
             const parsed = JSON.parse(data);
             if (Array.isArray(parsed)) return parsed;
         }
-    } catch (e) {}
+    } catch (e) { }
 
     return [{
         id: String(ADMIN_ID),
@@ -169,12 +169,12 @@ function loadSubscribers() {
 function saveSubscribers(list) {
     try {
         fs.writeFileSync(TMP_USERS_FILE, JSON.stringify(list, null, 2), 'utf8');
-    } catch (e) {}
+    } catch (e) { }
     try {
         if (fs.existsSync(LOCAL_DATA_DIR)) {
             fs.writeFileSync(LOCAL_USERS_FILE, JSON.stringify(list, null, 2), 'utf8');
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function trackUser(from) {
@@ -208,24 +208,24 @@ function loadScheduledTasks() {
         if (fs.existsSync(TMP_TASKS_FILE)) {
             return JSON.parse(fs.readFileSync(TMP_TASKS_FILE, 'utf8'));
         }
-    } catch (e) {}
+    } catch (e) { }
     try {
         if (fs.existsSync(LOCAL_TASKS_FILE)) {
             return JSON.parse(fs.readFileSync(LOCAL_TASKS_FILE, 'utf8'));
         }
-    } catch (e) {}
+    } catch (e) { }
     return [];
 }
 
 function saveScheduledTasks(tasks) {
     try {
         fs.writeFileSync(TMP_TASKS_FILE, JSON.stringify(tasks, null, 2), 'utf8');
-    } catch (e) {}
+    } catch (e) { }
     try {
         if (fs.existsSync(LOCAL_DATA_DIR)) {
             fs.writeFileSync(LOCAL_TASKS_FILE, JSON.stringify(tasks, null, 2), 'utf8');
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function getFlowState(userId) {
@@ -234,7 +234,7 @@ function getFlowState(userId) {
             const all = JSON.parse(fs.readFileSync(TMP_STATE_FILE, 'utf8'));
             return all[String(userId)] || null;
         }
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
@@ -242,7 +242,7 @@ function setFlowState(userId, state) {
     try {
         let all = {};
         if (fs.existsSync(TMP_STATE_FILE)) {
-            try { all = JSON.parse(fs.readFileSync(TMP_STATE_FILE, 'utf8')); } catch (e) {}
+            try { all = JSON.parse(fs.readFileSync(TMP_STATE_FILE, 'utf8')); } catch (e) { }
         }
         if (state === null) {
             delete all[String(userId)];
@@ -250,7 +250,7 @@ function setFlowState(userId, state) {
             all[String(userId)] = state;
         }
         fs.writeFileSync(TMP_STATE_FILE, JSON.stringify(all), 'utf8');
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function getOrdinal(n) {
@@ -348,7 +348,7 @@ const SEMESTER_SELECTION_KEYBOARD = {
 
 // Semester Card Prompt Text with Blockquote
 const SEMESTER_CARD_TEXT =
-    `👋 Welcome to IIUC CSE Resource Hub Bot!\n\n` +
+    `<b>👋 Welcome to IIUC CSE Resource Hub Bot!\n\n,</b>` +
     `🎓 Which semester are you in?\n` +
     `<blockquote> Please select your semester below so we can automatically deliver relevant previous exam questions before the exam : </blockquote>`;
 
@@ -495,7 +495,7 @@ async function executeDueTasks() {
                         ]
                     }
                 });
-            } catch (e) {}
+            } catch (e) { }
         }
     }
 
