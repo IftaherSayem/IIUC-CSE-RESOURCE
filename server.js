@@ -833,7 +833,10 @@ const SEMESTER_SELECTION_KEYBOARD = {
         [{ text: '📘 6th Semester', callback_data: 'set_sem_6', style: 'primary' }],
         [{ text: '📘 7th Semester', callback_data: 'set_sem_7', style: 'primary' }],
         [{ text: '📘 8th Semester', callback_data: 'set_sem_8', style: 'primary' }],
-        [{ text: '❌ Cancel', callback_data: 'cancel_sem', style: 'danger' }]
+        [
+            { text: '❌ Cancel', callback_data: 'cancel_sem' },
+            { text: '🗑️ Delete Message', callback_data: 'delete_msg', style: 'danger' }
+        ]
     ]
 };
 
@@ -1036,7 +1039,7 @@ async function processTelegramUpdate(update) {
             const successText =
                 `🎓 <b>Semester Registered Successfully!</b>\n` +
                 ` 🍄You are now registered for <b>${semName}</b>.\n` +
-                ` 💡 Need to change semester later? Click on the button below.`;
+                ` 💡 Need to change semester? Click on the button below.`;
 
             if (msgId) {
                 await callTelegramApi('editMessageText', {
@@ -1046,9 +1049,22 @@ async function processTelegramUpdate(update) {
                     parse_mode: 'HTML',
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: 'Change Semester', callback_data: 'select_semester', style: 'primary' }]
+                            [
+                                { text: 'Change Semester', callback_data: 'select_semester', style: 'primary' },
+                                { text: '🗑️ Delete', callback_data: 'delete_msg', style: 'danger' }
+                            ]
                         ]
                     }
+                });
+            }
+            return;
+        }
+
+        if (data === 'delete_msg' || data === 'delete_this_msg') {
+            if (msgId) {
+                await callTelegramApi('deleteMessage', {
+                    chat_id: userId,
+                    message_id: msgId
                 });
             }
             return;
@@ -1060,7 +1076,12 @@ async function processTelegramUpdate(update) {
                     chat_id: userId,
                     message_id: msgId,
                     text: `❌ <i>Semester selection cancelled.</i>\n\nYou can set your semester anytime by sending <code>/semester</code>.`,
-                    parse_mode: 'HTML'
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '🗑️ Delete', callback_data: 'delete_msg', style: 'danger' }]
+                        ]
+                    }
                 });
             }
             return;
@@ -2020,7 +2041,10 @@ async function processTelegramUpdate(update) {
                         parse_mode: 'HTML',
                         reply_markup: {
                             inline_keyboard: [
-                                [{ text: 'Change Semester', callback_data: 'select_semester', style: 'primary' }]
+                                [
+                                    { text: 'Change Semester', callback_data: 'select_semester', style: 'primary' },
+                                    { text: '🗑️ Delete', callback_data: 'delete_msg', style: 'danger' }
+                                ]
                             ]
                         }
                     });

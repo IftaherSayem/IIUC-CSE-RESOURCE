@@ -386,7 +386,10 @@ const SEMESTER_SELECTION_KEYBOARD = {
         [{ text: '📘 6th Semester', callback_data: 'set_sem_6', style: 'primary' }],
         [{ text: '📘 7th Semester', callback_data: 'set_sem_7', style: 'primary' }],
         [{ text: '📘 8th Semester', callback_data: 'set_sem_8', style: 'primary' }],
-        [{ text: '❌ Cancel', callback_data: 'cancel_sem', style: 'danger' }]
+        [
+            { text: '❌ Cancel', callback_data: 'cancel_sem' },
+            { text: '🗑️ Delete Message', callback_data: 'delete_msg', style: 'danger' }
+        ]
     ]
 };
 
@@ -790,9 +793,22 @@ exports.handler = async (event) => {
                     parse_mode: 'HTML',
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: 'Change Semester', callback_data: 'select_semester', style: 'primary' }]
+                            [
+                                { text: 'Change Semester', callback_data: 'select_semester', style: 'primary' },
+                                { text: '🗑️ Delete', callback_data: 'delete_msg', style: 'danger' }
+                            ]
                         ]
                     }
+                });
+            }
+            return { statusCode: 200, headers, body: '{"ok":true}' };
+        }
+
+        if (data === 'delete_msg' || data === 'delete_this_msg') {
+            if (msgId) {
+                await callTelegram('deleteMessage', {
+                    chat_id: userId,
+                    message_id: msgId
                 });
             }
             return { statusCode: 200, headers, body: '{"ok":true}' };
@@ -804,7 +820,12 @@ exports.handler = async (event) => {
                     chat_id: userId,
                     message_id: msgId,
                     text: `❌ <i>Semester selection cancelled.</i>\n\nYou can set your semester anytime by sending <code>/semester</code>.`,
-                    parse_mode: 'HTML'
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '🗑️ Delete', callback_data: 'delete_msg', style: 'danger' }]
+                        ]
+                    }
                 });
             }
             return { statusCode: 200, headers, body: '{"ok":true}' };
@@ -1697,7 +1718,10 @@ exports.handler = async (event) => {
                         parse_mode: 'HTML',
                         reply_markup: {
                             inline_keyboard: [
-                                [{ text: 'Change Semester', callback_data: 'select_semester', style: 'primary' }]
+                                [
+                                    { text: 'Change Semester', callback_data: 'select_semester', style: 'primary' },
+                                    { text: '🗑️ Delete', callback_data: 'delete_msg', style: 'danger' }
+                                ]
                             ]
                         }
                     });
