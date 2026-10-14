@@ -277,6 +277,12 @@ const SEMESTER_SELECTION_KEYBOARD = {
     ]
 };
 
+// Semester Card Prompt Text with Blockquote
+const SEMESTER_CARD_TEXT =
+    `👋 Welcome to IIUC CSE Resource Hub Bot!\n\n` +
+    `🎓 Which semester are you in?\n` +
+    `<blockquote> Please select your semester below so we can automatically deliver relevant previous exam questions before the exam : </blockquote>`;
+
 // Admin Persistent 4-dot menu Reply Keyboard
 const ADMIN_REPLY_KEYBOARD = {
     keyboard: [
@@ -345,28 +351,13 @@ async function dispatchGitHubQuestionsToStudents(task) {
 
     for (const sub of targetSubs) {
         try {
-            // 1. Send intro header
-            const intro =
-                `📚 <b>IIUC CSE Previous Questions Release!</b>\n\n` +
-                `🎓 Semester: <b>${task.semesterName}</b>\n` +
-                `📝 Exam: <b>${task.examType} Term</b>\n` +
-                `📦 Delivering <b>${ghRes.files.length} Previous Question Papers</b> directly from repository:\n\n` +
-                `<i>Please wait a few seconds while all PDFs are sent...</i>`;
-
-            await callTelegram('sendMessage', {
-                chat_id: sub.id,
-                text: intro,
-                parse_mode: 'HTML'
-            });
-
-            // 2. Deliver each PDF document from GitHub raw download URL
+            // Deliver each PDF document from GitHub repository
             for (const file of ghRes.files) {
                 const docUrl = file.download_url || `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/main/Semester${task.semester}/PreviousQuestions/${task.examType}/${encodeURIComponent(file.name)}`;
                 await callTelegram('sendDocument', {
                     chat_id: sub.id,
                     document: docUrl,
-                    caption: `📄 <b>${file.name}</b>\n🎓 ${task.semesterName} • ${task.examType} Term`,
-                    parse_mode: 'HTML'
+                    caption: 'auto delivered from : @iiuccseresourcebot'
                 });
                 await new Promise(r => setTimeout(r, 200));
             }
@@ -532,22 +523,18 @@ exports.handler = async (event) => {
         }
 
         if (data === 'select_semester') {
-            const semText =
-                `🎓 <b>Which semester are you in?</b>\n\n` +
-                `Please select your semester below so we can automatically deliver relevant previous exam questions and study resources for your semester:`;
-
             if (msgId) {
                 await callTelegram('editMessageText', {
                     chat_id: userId,
                     message_id: msgId,
-                    text: semText,
+                    text: SEMESTER_CARD_TEXT,
                     parse_mode: 'HTML',
                     reply_markup: SEMESTER_SELECTION_KEYBOARD
                 });
             } else {
                 await callTelegram('sendMessage', {
                     chat_id: userId,
-                    text: semText,
+                    text: SEMESTER_CARD_TEXT,
                     parse_mode: 'HTML',
                     reply_markup: SEMESTER_SELECTION_KEYBOARD
                 });
@@ -1390,10 +1377,9 @@ exports.handler = async (event) => {
 
         // Student /semester command
         if (text === '/semester' || text.toLowerCase() === 'semester' || text.toLowerCase().includes('change semester')) {
-            const currentSem = user && user.semester ? `\n(Current: <b>${user.semester_name || user.semester + 'th Semester'}</b>)` : '';
             await callTelegram('sendMessage', {
                 chat_id: userId,
-                text: `🎓 <b>Select Your Semester</b>${currentSem}\n\nChoose your semester below to receive previous exam questions and updates tailored for your semester:`,
+                text: SEMESTER_CARD_TEXT,
                 parse_mode: 'HTML',
                 reply_markup: SEMESTER_SELECTION_KEYBOARD
             });
@@ -1420,10 +1406,7 @@ exports.handler = async (event) => {
                 if (!user || !user.semester) {
                     await callTelegram('sendMessage', {
                         chat_id: userId,
-                        text:
-                            `👋 <b>Welcome to IIUC CSE Resource Hub Bot!</b>\n\n` +
-                            `🎓 <b>Which semester are you in?</b>\n` +
-                            `Please select your semester below so we can automatically deliver relevant previous exam questions and question banks for your semester:`,
+                        text: SEMESTER_CARD_TEXT,
                         parse_mode: 'HTML',
                         reply_markup: SEMESTER_SELECTION_KEYBOARD
                     });
