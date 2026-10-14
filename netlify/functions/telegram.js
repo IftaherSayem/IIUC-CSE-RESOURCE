@@ -622,14 +622,19 @@ async function broadcastSemesterSelectionPrompt(adminChatId = ADMIN_ID) {
     let fail = 0;
 
     const messageText =
-        `👋 <b>Assalamu Alaikum & Welcome to IIUC CSE Resource Hub Bot!</b>\n\n` +
-        `We deliver previous semester exam question papers (Mid & Final Term), solutions, and study resources tailored to your semester.\n\n` +
-        `<blockquote>👇 Please select your current semester below so we can automatically deliver previous exam questions before your exams:</blockquote>`;
+        `👋 <b>Assalamu Alaikum & Welcome to IIUC CSE Resource Bot!</b>\n\n` +
+        `👇 <b>Please select your current semester below so we can automatically deliver previous exam questions before your exams:</b>`;
 
     const replyMarkup = {
         inline_keyboard: [
-            [{ text: '📘 Select Your Semester (1st – 8th)', callback_data: 'select_semester', style: 'primary' }],
-            [{ text: '🌐 Browse Web App Portal', web_app: { url: 'https://cseresourceofiiuc.netlify.app' } }]
+            [{ text: '📘 1st Semester', callback_data: 'set_sem_1', style: 'primary' }],
+            [{ text: '📘 2nd Semester', callback_data: 'set_sem_2', style: 'primary' }],
+            [{ text: '📘 3rd Semester', callback_data: 'set_sem_3', style: 'primary' }],
+            [{ text: '📘 4th Semester', callback_data: 'set_sem_4', style: 'primary' }],
+            [{ text: '📘 5th Semester', callback_data: 'set_sem_5', style: 'primary' }],
+            [{ text: '📘 6th Semester', callback_data: 'set_sem_6', style: 'primary' }],
+            [{ text: '📘 7th Semester', callback_data: 'set_sem_7', style: 'primary' }],
+            [{ text: '📘 8th Semester', callback_data: 'set_sem_8', style: 'primary' }]
         ]
     };
 
@@ -1236,16 +1241,17 @@ exports.handler = async (event) => {
         if (data === 'admin_prompt_sem_broadcast') {
             const subscribers = loadSubscribers();
             const previewText =
-                `📢 <b>Broadcast Semester Setup Button to All Users</b>\n\n` +
+                `📢 <b>Broadcast Semester Setup to All Users</b>\n\n` +
                 `Target Audience: <b>${subscribers.length} subscribers</b>\n\n` +
-                `<b>Preview of what students will receive:</b>\n` +
+                `<b>Exact message students will receive:</b>\n` +
                 `────────────────────────\n` +
-                `👋 <b>Assalamu Alaikum & Welcome to IIUC CSE Resource Hub Bot!</b>\n\n` +
-                `We deliver previous semester exam question papers (Mid & Final Term), solutions, and study resources tailored to your semester.\n\n` +
-                `<blockquote>👇 Please select your current semester below so we can automatically deliver previous exam questions before your exams:</blockquote>\n` +
-                `[ 📘 Select Your Semester (1st – 8th) ]\n` +
+                `👋 <b>Assalamu Alaikum & Welcome to IIUC CSE Resource Bot!</b>\n\n` +
+                `👇 <b>Please select your current semester below so we can automatically deliver previous exam questions before your exams:</b>\n\n` +
+                `[ 📘 1st Semester ]\n` +
+                `[ 📘 2nd Semester ]\n` +
+                `[ ... to 8th Semester ]\n` +
                 `────────────────────────\n\n` +
-                `<i>Tap confirm below to dispatch this message with the inline button to all ${subscribers.length} students now:</i>`;
+                `<i>Tap confirm below to dispatch to all ${subscribers.length} students now:</i>`;
 
             const keyboard = {
                 inline_keyboard: [
