@@ -559,11 +559,11 @@
         }
 
         .tg-preview-btn {
-            background: var(--tg-btn-bg);
-            color: var(--primary-color);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
             border: none;
             border-radius: 8px;
-            padding: 10px;
+            padding: 10px 14px;
             text-align: center;
             font-weight: 600;
             font-size: 0.85rem;
@@ -572,6 +572,96 @@
             justify-content: center;
             gap: 6px;
             cursor: pointer;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.28);
+            transition: all 0.2s ease;
+        }
+
+        .tg-preview-btn.btn-style-blue {
+            background: linear-gradient(135deg, #0088cc 0%, #0077b5 100%);
+            box-shadow: 0 4px 12px rgba(0, 136, 204, 0.28);
+        }
+
+        .tg-preview-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.38);
+        }
+
+        /* 4-Dot Menu Telegram Chat Bottom Bar Preview */
+        .tg-chat-input-bar {
+            background: var(--card-bg);
+            border-top: 1px solid var(--card-border);
+            padding: 8px 12px;
+            border-radius: 12px;
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .tg-input-placeholder {
+            flex: 1;
+            font-size: 0.85rem;
+            color: var(--light-text);
+            padding: 6px 12px;
+            background: var(--input-bg);
+            border-radius: 20px;
+            border: 1px solid var(--card-border);
+        }
+
+        .tg-four-dot-icon {
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            border-radius: 50%;
+            font-size: 0.95rem;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .tg-four-dot-icon:hover {
+            transform: scale(1.08);
+        }
+
+        .tg-four-dot-drawer {
+            background: rgba(16, 185, 129, 0.06);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .tg-menu-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 11px 16px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .tg-menu-btn:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.42);
         }
 
         /* Broadcast Progress / Logs Box */
@@ -925,11 +1015,30 @@
                     <div class="inline-btn-section">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                             <label class="form-label" style="margin-bottom: 0;">
-                                <i class="fas fa-mouse-pointer"></i> Telegram Inline Buttons
+                                <i class="fas fa-th-large"></i> Telegram Buttons & 4-Dot Menu
                             </label>
                             <button type="button" class="btn-add-action" onclick="addInlineButton()">
-                                <i class="fas fa-plus"></i> Add Inline Button
+                                <i class="fas fa-plus"></i> Add Button
                             </button>
+                        </div>
+
+                        <!-- Menu Type & Style Controls -->
+                        <div style="display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Button Placement / Menu Type</label>
+                                <select id="buttonPlacement" class="form-control" onchange="updatePreview()">
+                                    <option value="keyboard" selected>🎛️ 4-Dot Menu Keyboard (Persistent in Chat)</option>
+                                    <option value="inline">💬 Under Message (Inline Keyboard)</option>
+                                    <option value="both">✨ Both (4-Dot Menu + Under Message)</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Button Color Style</label>
+                                <select id="buttonColorStyle" class="form-control" onchange="updatePreview()">
+                                    <option value="green" selected>🟢 Vibrant Green (Emerald Style)</option>
+                                    <option value="blue">🔵 Telegram Ocean Blue</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="inline-btn-list" id="inlineBtnList">
@@ -939,9 +1048,24 @@
                         <!-- Presets -->
                         <div class="presets-row">
                             <span style="font-size: 0.75rem; color: var(--light-text); display: flex; align-items: center;">Quick Presets:</span>
-                            <span class="preset-badge" onclick="applyPreset('webapp')">🚀 Open Resource Hub (WebApp)</span>
+                            <span class="preset-badge" onclick="applyPreset('webapp')" style="border-color: #10b981; color: #10b981; font-weight: 600;">🟢 Open Resource Hub (WebApp)</span>
                             <span class="preset-badge" onclick="applyPreset('channel')">📢 Join Channel</span>
                             <span class="preset-badge" onclick="applyPreset('support')">💬 Contact Admin</span>
+                        </div>
+
+                        <!-- 4-Dot Bot Menu Button Sync Action -->
+                        <div style="margin-top: 14px; padding: 12px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.85rem; color: #10b981; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-th-large"></i> Telegram Bot 4-Dot Menu Button
+                                </div>
+                                <div style="font-size: 0.75rem; color: var(--light-text); margin-top: 2px;">
+                                    Sets permanent <strong>🟢 Open Resource Hub</strong> WebApp button in bot chat bar for all users.
+                                </div>
+                            </div>
+                            <button type="button" id="setMenuBtn" onclick="setBotChatMenuButton()" class="btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 8px 14px; font-size: 0.8rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(16,185,129,0.3); flex-shrink: 0; cursor: pointer;">
+                                <i class="fas fa-check-circle"></i> Set 4-Dot Bot Menu
+                            </button>
                         </div>
                     </div>
 
@@ -1010,6 +1134,24 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
                         <!-- Preview of Inline Keyboard Buttons -->
                         <div class="tg-inline-buttons-preview" id="previewInlineButtons">
                             <!-- Populated dynamically -->
+                        </div>
+
+                        <!-- 4-Dot Menu Keyboard Preview -->
+                        <div id="preview4DotSection">
+                            <div class="tg-chat-input-bar">
+                                <div class="tg-input-placeholder"><i class="far fa-smile" style="margin-right: 6px;"></i> Message...</div>
+                                <div class="tg-four-dot-icon" title="Telegram 4-Dot Menu (Grid Toggle)">
+                                    <i class="fas fa-th"></i>
+                                </div>
+                            </div>
+                            <div class="tg-four-dot-drawer" id="previewKeyboardDrawer">
+                                <div style="font-size: 0.75rem; color: #10b981; font-weight: 700; display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
+                                    <i class="fas fa-th"></i> Telegram 4-Dot Menu (Green Style):
+                                </div>
+                                <div id="previewKeyboardButtons" style="display: flex; flex-direction: column; gap: 6px;">
+                                    <!-- Populated dynamically with green buttons -->
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1116,8 +1258,8 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
 
         // Initialize default sample buttons
         inlineButtons = [
-            { text: '🚀 Open Resource Hub', type: 'webapp', url: CURRENT_APP_URL },
-            { text: '📢 Join CSE Channel', type: 'url', url: 'https://t.me/iiuc_cse' }
+            { text: '🟢 Open Resource Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'green' },
+            { text: '📢 Join CSE Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'green' }
         ];
 
         // Theme Setup
@@ -1344,11 +1486,11 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
 
         function applyPreset(type) {
             if (type === 'webapp') {
-                inlineButtons.push({ text: '🚀 Open Resource Hub', type: 'webapp', url: CURRENT_APP_URL });
+                inlineButtons.push({ text: '🟢 Open Resource Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'green' });
             } else if (type === 'channel') {
-                inlineButtons.push({ text: '📢 Join Telegram Channel', type: 'url', url: 'https://t.me/iiuc_cse' });
+                inlineButtons.push({ text: '📢 Join Telegram Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'green' });
             } else if (type === 'support') {
-                inlineButtons.push({ text: '💬 Contact Admin', type: 'url', url: 'https://t.me/IftaherSayem' });
+                inlineButtons.push({ text: '💬 Contact Admin', type: 'url', url: 'https://t.me/IftaherSayem', style: 'green' });
             }
             renderInlineButtons();
             showToast('Preset button added', 'success');
@@ -1421,14 +1563,51 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
 
             // Render Preview Buttons
             const buttonsContainer = document.getElementById('previewInlineButtons');
-            buttonsContainer.innerHTML = '';
+            const keyboardContainer = document.getElementById('previewKeyboardButtons');
+            const fourDotSection = document.getElementById('preview4DotSection');
+            const placement = document.getElementById('buttonPlacement')?.value || 'keyboard';
+            const colorStyle = document.getElementById('buttonColorStyle')?.value || 'green';
+
+            if (buttonsContainer) buttonsContainer.innerHTML = '';
+            if (keyboardContainer) keyboardContainer.innerHTML = '';
+
+            const showInline = (placement === 'inline' || placement === 'both');
+            const show4Dot = (placement === 'keyboard' || placement === 'both');
+
+            if (fourDotSection) {
+                fourDotSection.style.display = show4Dot ? 'block' : 'none';
+            }
+            if (buttonsContainer) {
+                buttonsContainer.style.display = showInline ? 'flex' : 'none';
+            }
 
             inlineButtons.forEach(btn => {
-                const b = document.createElement('div');
-                b.className = 'tg-preview-btn';
+                let label = btn.text || 'Button';
+                if (colorStyle === 'green' && !label.includes('🟢')) {
+                    label = '🟢 ' + label;
+                }
                 const icon = btn.type === 'webapp' ? 'fa-window-maximize' : 'fa-external-link-alt';
-                b.innerHTML = `<i class="fas ${icon}"></i> ${escapeHtml(btn.text || 'Button')}`;
-                buttonsContainer.appendChild(b);
+
+                if (showInline && buttonsContainer) {
+                    const b = document.createElement('div');
+                    b.className = `tg-preview-btn ${colorStyle === 'blue' ? 'btn-style-blue' : ''}`;
+                    b.innerHTML = `<i class="fas ${icon}"></i> ${escapeHtml(label)}`;
+                    buttonsContainer.appendChild(b);
+                }
+
+                if (show4Dot && keyboardContainer) {
+                    const kb = document.createElement('div');
+                    kb.className = 'tg-menu-btn';
+                    if (colorStyle === 'blue') {
+                        kb.style.background = 'linear-gradient(135deg, #0088cc 0%, #0077b5 100%)';
+                        kb.style.boxShadow = '0 4px 12px rgba(0, 136, 204, 0.3)';
+                    } else {
+                        kb.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                        kb.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.3)';
+                    }
+                    kb.innerHTML = `<i class="fas ${icon}"></i> ${escapeHtml(label)}`;
+                    keyboardContainer.appendChild(kb);
+                }
             });
 
             // Preview Time
@@ -1453,23 +1632,108 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
             }
         }
 
-        // Construct Telegram reply_markup for inline keyboard
+        // Construct Telegram reply_markup for 4-dot menu keyboard or inline keyboard
         function buildReplyMarkup() {
             if (!inlineButtons || inlineButtons.length === 0) return null;
 
-            const keyboardRows = [];
-            inlineButtons.forEach(btn => {
-                if (!btn.text || !btn.url) return;
-                const buttonObj = { text: btn.text };
-                if (btn.type === 'webapp') {
-                    buttonObj.web_app = { url: btn.url };
-                } else {
-                    buttonObj.url = btn.url;
-                }
-                keyboardRows.push([buttonObj]);
-            });
+            const placement = document.getElementById('buttonPlacement')?.value || 'keyboard';
+            const colorStyle = document.getElementById('buttonColorStyle')?.value || 'green';
 
-            return keyboardRows.length > 0 ? { inline_keyboard: keyboardRows } : null;
+            if (placement === 'keyboard' || placement === 'both') {
+                const keyboardRows = [];
+                inlineButtons.forEach(btn => {
+                    if (!btn.text) return;
+                    let label = btn.text;
+                    if (colorStyle === 'green' && !label.includes('🟢')) {
+                        label = '🟢 ' + label;
+                    }
+                    const btnObj = { text: label };
+                    if (btn.type === 'webapp' && btn.url) {
+                        btnObj.web_app = { url: btn.url };
+                    }
+                    keyboardRows.push([btnObj]);
+                });
+                return keyboardRows.length > 0 ? {
+                    keyboard: keyboardRows,
+                    resize_keyboard: true,
+                    is_persistent: true
+                } : null;
+            } else {
+                const inlineRows = [];
+                inlineButtons.forEach(btn => {
+                    if (!btn.text || !btn.url) return;
+                    let label = btn.text;
+                    if (colorStyle === 'green' && !label.includes('🟢')) {
+                        label = '🟢 ' + label;
+                    }
+                    const btnObj = { text: label };
+                    if (btn.type === 'webapp') {
+                        btnObj.web_app = { url: btn.url };
+                    } else {
+                        btnObj.url = btn.url;
+                    }
+                    inlineRows.push([btnObj]);
+                });
+                return inlineRows.length > 0 ? { inline_keyboard: inlineRows } : null;
+            }
+        }
+
+        // Set Telegram Bot 4-Dot Menu Button (Web App)
+        async function setBotChatMenuButton() {
+            const btn = document.getElementById('setMenuBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Setting Menu...';
+
+            const menuButtonPayload = {
+                type: 'web_app',
+                text: '🟢 Resource Hub',
+                web_app: { url: CURRENT_APP_URL }
+            };
+
+            try {
+                let success = false;
+                let errMsg = '';
+
+                // Try direct call to Telegram API
+                try {
+                    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/setChatMenuButton`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ menu_button: menuButtonPayload })
+                    });
+                    const d = await res.json();
+                    if (d.ok) success = true;
+                    else errMsg = d.description;
+                } catch(e) {
+                    errMsg = e.message;
+                }
+
+                // If direct call fails or is blocked by CORS/ISP, route through server proxy
+                if (!success && SERVER_URL) {
+                    try {
+                        const sRes = await fetch(`${SERVER_URL}/api/telegram/set-menu-button`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ botToken: BOT_TOKEN, menuButton: menuButtonPayload })
+                        });
+                        const sd = await sRes.json();
+                        if (sd.ok) success = true;
+                        else if (sd.description) errMsg = sd.description;
+                    } catch(e) {}
+                }
+
+                if (success) {
+                    showToast('Telegram 4-dot bot menu button set to Green WebApp!', 'success');
+                } else {
+                    showToast(`Failed to set menu button: ${errMsg || 'Check Bot Token'}`, 'error');
+                }
+            } catch(err) {
+                showToast(`Error: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
         }
 
         // Send Test Message to Admin

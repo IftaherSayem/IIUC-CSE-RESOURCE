@@ -252,6 +252,33 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
+    // 2.5 Telegram Set Chat Menu Button Endpoint (Server Mode)
+    if (pathname === '/api/telegram/set-menu-button' && req.method === 'POST') {
+        try {
+            const body = await parseBody(req);
+            const { botToken, menuButton } = body;
+            const activeToken = botToken || BOT_TOKEN;
+
+            const apiUrl = `https://api.telegram.org/bot${activeToken}/setChatMenuButton`;
+            const tgRes = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    menu_button: menuButton || {
+                        type: 'web_app',
+                        text: '🟢 Resource Hub',
+                        web_app: { url: 'https://iiuc-cse-resource.netlify.app' }
+                    }
+                })
+            });
+            const tgData = await tgRes.json();
+            return sendJson(res, tgRes.ok ? 200 : 400, tgData);
+        } catch (error) {
+            console.error('[SERVER] Set menu button error:', error);
+            return sendJson(res, 500, { ok: false, error: error.message });
+        }
+    }
+
     // 3. Download Proxy Endpoint (Server Streams the File)
     if (pathname === '/api/download' && req.method === 'GET') {
         const fileUrl = query.url;
