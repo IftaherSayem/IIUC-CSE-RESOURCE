@@ -1453,3 +1453,5 @@ exports.handler = async (event) => {
 
     return { statusCode: 200, headers, body: '{"ok":true}' };
 };
+
+exports.executeDueTasks = executeDueTasks;

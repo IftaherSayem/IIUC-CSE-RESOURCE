@@ -44,6 +44,36 @@ if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
+// Dynamically load Telegram Bot Handler Module
+let telegramModule = null;
+const possiblePaths = [
+    path.join(__dirname, 'netlify', 'functions', 'telegram.js'),
+    path.join(__dirname, '..', 'netlify', 'functions', 'telegram.js')
+];
+for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+        try {
+            telegramModule = require(p);
+            console.log('[SERVER] Loaded Telegram Bot module from:', p);
+            break;
+        } catch (e) {
+            console.error('[SERVER] Failed to load telegram module:', e.message);
+        }
+    }
+}
+
+// 24/7 Background Scheduler Loop (checks every 10 seconds for exact-second auto-send delivery)
+if (telegramModule && typeof telegramModule.executeDueTasks === 'function') {
+    setInterval(async () => {
+        try {
+            await telegramModule.executeDueTasks();
+        } catch (e) {
+            console.error('[SERVER] 24/7 Scheduler execution error:', e.message);
+        }
+    }, 10000);
+    console.log('[SERVER] 24/7 Auto-Send Scheduler loop active (checking every 10s)');
+}
+
 // In-memory cache for GitHub API responses
 const githubCache = {};
 let cachedTotalFiles = null;
@@ -141,8 +171,30 @@ const server = http.createServer(async (req, res) => {
             uptime: Math.round(process.uptime()),
             timestamp: Date.now(),
             service: 'IIUC CSE Resource Hub Backend',
-            activePort: PORT
+            activePort: PORT,
+            telegramBotActive: !!telegramModule
         });
+    }
+
+    // 1.1 Telegram Webhook Handler (Bot-Keep 24/7 Server Endpoint)
+    if (pathname === '/api/telegram/webhook' || pathname === '/api/telegram' || pathname === '/.netlify/functions/telegram') {
+        if (!telegramModule) {
+            return sendJson(res, 500, { ok: false, error: 'Telegram bot module not loaded' });
+        }
+        try {
+            const body = (req.method === 'POST') ? await parseBody(req) : {};
+            const event = {
+                httpMethod: req.method,
+                body: typeof body === 'string' ? body : JSON.stringify(body),
+                headers: req.headers
+            };
+            const result = await telegramModule.handler(event);
+            res.writeHead(result.statusCode || 200, result.headers || { 'Content-Type': 'application/json' });
+            return res.end(result.body || '{"ok":true}');
+        } catch (e) {
+            console.error('[SERVER] Webhook handling error:', e);
+            return sendJson(res, 500, { ok: false, error: e.message });
+        }
     }
 
     // 2. Telegram Send File Endpoint (Server Mode)
