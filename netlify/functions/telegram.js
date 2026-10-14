@@ -376,9 +376,9 @@ const SEMESTER_SELECTION_KEYBOARD = {
 
 // Semester Card Prompt Text with Blockquote
 const SEMESTER_CARD_TEXT =
-    `<b>👋 Welcome to IIUC CSE Resource Hub Bot!\n\n,</b>` +
-    `🎓 Which semester are you in?\n` +
-    `<blockquote> Please select your semester below so we can automatically deliver relevant previous exam questions before the exam : </blockquote>`;
+    `👋 <b>Welcome to IIUC CSE Resource Hub Bot!</b>\n\n` +
+    `🎓 <b>Which semester are you in?</b>\n` +
+    `<blockquote>Please select your semester below so we can automatically deliver relevant previous exam questions before the exam :</blockquote>`;
 
 // Admin Persistent 4-dot menu Reply Keyboard
 const ADMIN_REPLY_KEYBOARD = {
@@ -621,22 +621,8 @@ async function broadcastSemesterSelectionPrompt(adminChatId = ADMIN_ID) {
     let success = 0;
     let fail = 0;
 
-    const messageText =
-        `👋 <b>Assalamu Alaikum & Welcome to IIUC CSE Resource Bot!</b>\n\n` +
-        `👇 <b>Please select your current semester below so we can automatically deliver previous exam questions before your exams:</b>`;
-
-    const replyMarkup = {
-        inline_keyboard: [
-            [{ text: '📘 1st Semester', callback_data: 'set_sem_1', style: 'primary' }],
-            [{ text: '📘 2nd Semester', callback_data: 'set_sem_2', style: 'primary' }],
-            [{ text: '📘 3rd Semester', callback_data: 'set_sem_3', style: 'primary' }],
-            [{ text: '📘 4th Semester', callback_data: 'set_sem_4', style: 'primary' }],
-            [{ text: '📘 5th Semester', callback_data: 'set_sem_5', style: 'primary' }],
-            [{ text: '📘 6th Semester', callback_data: 'set_sem_6', style: 'primary' }],
-            [{ text: '📘 7th Semester', callback_data: 'set_sem_7', style: 'primary' }],
-            [{ text: '📘 8th Semester', callback_data: 'set_sem_8', style: 'primary' }]
-        ]
-    };
+    const messageText = SEMESTER_CARD_TEXT;
+    const replyMarkup = SEMESTER_SELECTION_KEYBOARD;
 
     for (const sub of subscribers) {
         try {
