@@ -5,6 +5,8 @@ const path = require('path');
 const BOT_TOKEN = process.env.BOT_TOKEN || '7954499196:AAF7YiojzLccNyFe-wHDBueJMLVnal-9WhM';
 const ADMIN_ID = process.env.ADMIN_CHAT_ID || '6623300482';
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const GITHUB_REPO_OWNER = '11UCRES';
+const GITHUB_REPO_NAME = 'cse';
 
 // File paths for persistence in serverless /tmp or local workspace
 const TMP_DATA_DIR = path.join('/tmp', 'data');
@@ -21,7 +23,7 @@ try {
 } catch (e) {}
 
 // Raw direct HTTPS call to Telegram (bypasses node fetch socket issues with automatic retry)
-function callTelegram(method, params = {}, timeoutMs = 12000) {
+function callTelegram(method, params = {}, timeoutMs = 15000) {
     if (params && params.reply_markup) {
         const validStyles = ['primary', 'success', 'danger'];
         const sanitize = (rows) => {
@@ -94,7 +96,48 @@ function callTelegram(method, params = {}, timeoutMs = 12000) {
 }
 
 // -------------------------------------------------------------
-// 1. DATA PERSISTENCE HELPERS
+// 1. GITHUB REPOSITORY QUESTIONS FETCHER
+// -------------------------------------------------------------
+function fetchGitHubQuestions(semesterNumber, examType) {
+    const semFolder = `Semester${semesterNumber}`;
+    const cleanExam = (examType && examType.toLowerCase().includes('mid')) ? 'Mid' : 'Final';
+    const ghPath = `/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${semFolder}/PreviousQuestions/${cleanExam}`;
+
+    return new Promise((resolve) => {
+        const req = https.request({
+            hostname: 'api.github.com',
+            path: ghPath,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'IIUC-CSE-Bot',
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            timeout: 10000
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const list = JSON.parse(data);
+                    if (Array.isArray(list)) {
+                        const files = list.filter(item => item.type === 'file' || item.name.endsWith('.pdf'));
+                        resolve({ ok: true, files, count: files.length, semester: semesterNumber, examType: cleanExam });
+                    } else {
+                        resolve({ ok: false, error: list.message || 'No questions found', files: [] });
+                    }
+                } catch (e) {
+                    resolve({ ok: false, error: 'JSON parse error', files: [] });
+                }
+            });
+        });
+        req.on('error', (err) => resolve({ ok: false, error: err.message, files: [] }));
+        req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'Timeout', files: [] }); });
+        req.end();
+    });
+}
+
+// -------------------------------------------------------------
+// 2. DATA PERSISTENCE HELPERS
 // -------------------------------------------------------------
 function loadSubscribers() {
     try {
@@ -216,7 +259,7 @@ function getOrdinal(n) {
 }
 
 // -------------------------------------------------------------
-// 2. KEYBOARD LAYOUTS
+// 3. KEYBOARD LAYOUTS
 // -------------------------------------------------------------
 
 // Student Semester Selection Keyboard: 1-8th semester (1 per row, style primary) + 1 cancel button (style danger)
@@ -258,7 +301,7 @@ function getAdminPanelPayload() {
     const reply_markup = {
         inline_keyboard: [
             [
-                { text: '📝 Send / Schedule Previous Questions', callback_data: 'admin_questions_start', style: 'primary' }
+                { text: '📚 Auto-Send Previous Questions (GitHub)', callback_data: 'admin_gh_start', style: 'primary' }
             ],
             [
                 { text: '📢 General Announcement Broadcast', callback_data: 'admin_broadcast_start', style: 'primary' }
@@ -281,8 +324,63 @@ function getAdminPanelPayload() {
 }
 
 // -------------------------------------------------------------
-// 3. AUTO-SEND BACKGROUND EXECUTION ENGINE
+// 4. AUTO-SEND BACKGROUND EXECUTION ENGINE (GITHUB QUESTIONS)
 // -------------------------------------------------------------
+async function dispatchGitHubQuestionsToStudents(task) {
+    const subscribers = loadSubscribers();
+    const targetSubs = subscribers.filter(s => String(s.semester) === String(task.semester));
+
+    if (targetSubs.length === 0) {
+        return { success: 0, fail: 0, total: 0, error: 'No students registered for this semester yet.' };
+    }
+
+    // Fetch question paper files from GitHub repository
+    const ghRes = await fetchGitHubQuestions(task.semester, task.examType);
+    if (!ghRes.ok || ghRes.files.length === 0) {
+        return { success: 0, fail: 0, total: targetSubs.length, error: ghRes.error || 'No PDF files found in repository.' };
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const sub of targetSubs) {
+        try {
+            // 1. Send intro header
+            const intro =
+                `📚 <b>IIUC CSE Previous Questions Release!</b>\n\n` +
+                `🎓 Semester: <b>${task.semesterName}</b>\n` +
+                `📝 Exam: <b>${task.examType} Term</b>\n` +
+                `📦 Delivering <b>${ghRes.files.length} Previous Question Papers</b> directly from repository:\n\n` +
+                `<i>Please wait a few seconds while all PDFs are sent...</i>`;
+
+            await callTelegram('sendMessage', {
+                chat_id: sub.id,
+                text: intro,
+                parse_mode: 'HTML'
+            });
+
+            // 2. Deliver each PDF document from GitHub raw download URL
+            for (const file of ghRes.files) {
+                const docUrl = file.download_url || `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/main/Semester${task.semester}/PreviousQuestions/${task.examType}/${encodeURIComponent(file.name)}`;
+                await callTelegram('sendDocument', {
+                    chat_id: sub.id,
+                    document: docUrl,
+                    caption: `📄 <b>${file.name}</b>\n🎓 ${task.semesterName} • ${task.examType} Term`,
+                    parse_mode: 'HTML'
+                });
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            successCount++;
+        } catch (e) {
+            failCount++;
+        }
+        await new Promise(r => setTimeout(r, 100));
+    }
+
+    return { success: successCount, fail: failCount, total: targetSubs.length, fileCount: ghRes.files.length };
+}
+
 async function executeDueTasks() {
     const tasks = loadScheduledTasks();
     const now = Date.now();
@@ -293,48 +391,32 @@ async function executeDueTasks() {
             task.status = 'executing';
             saveScheduledTasks(tasks);
 
-            const subscribers = loadSubscribers();
-            const targetSubs = subscribers.filter(s => {
-                if (task.targetSemester === 'all') return true;
-                return String(s.semester) === String(task.targetSemester);
-            });
-
-            let success = 0, fail = 0;
-            for (const sub of targetSubs) {
-                try {
-                    const res = await callTelegram('copyMessage', {
-                        chat_id: sub.id,
-                        from_chat_id: task.fromChatId,
-                        message_id: task.messageId
-                    });
-                    if (res && res.ok) success++;
-                    else fail++;
-                } catch (e) {
-                    fail++;
-                }
-            }
+            const result = await dispatchGitHubQuestionsToStudents(task);
 
             task.status = 'completed';
             task.completedAt = new Date().toISOString();
-            task.successCount = success;
-            task.failCount = fail;
+            task.successCount = result.success;
+            task.failCount = result.fail;
             hasChanges = true;
 
-            // Notify Admin of completed auto-send
+            // Notify Admin
             try {
+                const report =
+                    `🔔 <b>Auto-Send Completed: Previous Questions from GitHub!</b>\n\n` +
+                    `• Semester: <b>${task.semesterName}</b>\n` +
+                    `• Exam Category: <b>${task.examType} Term</b>\n` +
+                    `• Delivered to: <b>${result.success} students</b>\n` +
+                    `• Failed / Blocked: <b>${result.fail}</b>\n` +
+                    `• Question Papers Sent: <b>${result.fileCount || 0} PDFs</b>` +
+                    (result.error ? `\n\n⚠️ <i>Note: ${result.error}</i>` : '');
+
                 await callTelegram('sendMessage', {
-                    chat_id: task.fromChatId,
-                    text:
-                        `🔔 <b>Auto-Send Previous Questions Completed!</b>\n\n` +
-                        `• Target: <b>${task.targetSemName}</b>\n` +
-                        `• Scheduled For: <b>${task.scheduledTimeFormatted}</b>\n` +
-                        `• Successfully Sent: <b>${success}</b>\n` +
-                        `• Failed / Inactive: <b>${fail}</b>\n` +
-                        `• Total Targeted: <b>${targetSubs.length}</b>`,
+                    chat_id: task.adminChatId || ADMIN_ID,
+                    text: report,
                     parse_mode: 'HTML',
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: '👑 Admin Panel', callback_data: 'admin_menu', style: 'primary' }]
+                            [{ text: '👑 Back to Admin Panel', callback_data: 'admin_menu', style: 'primary' }]
                         ]
                     }
                 });
@@ -348,7 +430,7 @@ async function executeDueTasks() {
 }
 
 // -------------------------------------------------------------
-// 4. MAIN NETLIFY SERVERLESS WEBHOOK HANDLER
+// 5. MAIN NETLIFY SERVERLESS WEBHOOK HANDLER
 // -------------------------------------------------------------
 exports.handler = async (event) => {
     const headers = {
@@ -358,7 +440,6 @@ exports.handler = async (event) => {
     };
 
     if (event.httpMethod === 'GET') {
-        // Trigger auto-send check and return health status
         await executeDueTasks();
         return {
             statusCode: 200,
@@ -382,7 +463,7 @@ exports.handler = async (event) => {
     executeDueTasks().catch(e => console.error('[SCHEDULER] check error:', e.message));
 
     // =========================================================================
-    // 5. PROCESS INLINE BUTTON CALLBACKS (callback_query)
+    // 6. PROCESS INLINE BUTTON CALLBACKS (callback_query)
     // =========================================================================
     if (update.callback_query) {
         const query = update.callback_query;
@@ -405,7 +486,6 @@ exports.handler = async (event) => {
             const semNum = parseInt(data.replace('set_sem_', ''), 10);
             const semName = `${semNum}${getOrdinal(semNum)} Semester`;
 
-            // Save semester for subscriber
             const subs = loadSubscribers();
             const idx = subs.findIndex(s => String(s.id) === userId);
             if (idx > -1) {
@@ -418,7 +498,7 @@ exports.handler = async (event) => {
             const successText =
                 `🎓 <b>Semester Registered Successfully!</b>\n\n` +
                 `You are now registered for <b>${semName}</b>.\n\n` +
-                `Whenever previous exam questions, solutions, and notices are released for <b>${semName}</b>, they will be automatically sent to you here!\n\n` +
+                `Whenever previous exam questions (Mid & Final Term) are released for <b>${semName}</b>, they will be automatically sent to you here directly from our repository!\n\n` +
                 `🌐 <i>Browse all slides, syllabus & questions anytime on our web app:</i>\n` +
                 `🔗 https://cseresourceofiiuc.netlify.app\n\n` +
                 `💡 <i>Need to change semester later? Send /semester anytime.</i>`;
@@ -476,7 +556,7 @@ exports.handler = async (event) => {
         }
 
         // ---------------------------------------------------------------------
-        // ADMIN-ONLY ACTIONS CHECK
+        // ADMIN ACTIONS CHECK
         // ---------------------------------------------------------------------
         if (!isAdmin) {
             await callTelegram('answerCallbackQuery', {
@@ -511,15 +591,16 @@ exports.handler = async (event) => {
         }
 
         // ---------------------------------------------------------------------
-        // ADMIN: PREVIOUS QUESTIONS BROADCAST & AUTO-SEND WIZARD
+        // ADMIN: AUTO-SEND PREVIOUS QUESTIONS DIRECTLY FROM GITHUB REPOSITORY
         // ---------------------------------------------------------------------
-        if (data === 'admin_questions_start') {
+        // Step 1: Select Target Semester
+        if (data === 'admin_gh_start') {
             const subscribers = loadSubscribers();
             const getSemCount = (num) => subscribers.filter(s => String(s.semester) === String(num)).length;
 
-            const qText =
-                `📝 <b>Select Target Semester for Previous Questions</b>\n\n` +
-                `Choose which semester's students should receive the question paper:\n\n` +
+            const text =
+                `📚 <b>Auto-Send Previous Questions from GitHub</b>\n\n` +
+                `Select which semester's students should receive previous questions:\n\n` +
                 `• 1st Sem: <b>${getSemCount(1)} students</b>\n` +
                 `• 2nd Sem: <b>${getSemCount(2)} students</b>\n` +
                 `• 3rd Sem: <b>${getSemCount(3)} students</b>\n` +
@@ -528,28 +609,25 @@ exports.handler = async (event) => {
                 `• 6th Sem: <b>${getSemCount(6)} students</b>\n` +
                 `• 7th Sem: <b>${getSemCount(7)} students</b>\n` +
                 `• 8th Sem: <b>${getSemCount(8)} students</b>\n\n` +
-                `<i>Tap a semester below to proceed to upload:</i>`;
+                `<i>Tap a semester below to select exam type (Mid or Final):</i>`;
 
             const keyboard = {
                 inline_keyboard: [
                     [
-                        { text: `1st Sem (${getSemCount(1)})`, callback_data: 'admin_q_sem_1', style: 'primary' },
-                        { text: `2nd Sem (${getSemCount(2)})`, callback_data: 'admin_q_sem_2', style: 'primary' }
+                        { text: `📘 1st Sem (${getSemCount(1)})`, callback_data: 'admin_gh_sem_1', style: 'primary' },
+                        { text: `📘 2nd Sem (${getSemCount(2)})`, callback_data: 'admin_gh_sem_2', style: 'primary' }
                     ],
                     [
-                        { text: `3rd Sem (${getSemCount(3)})`, callback_data: 'admin_q_sem_3', style: 'primary' },
-                        { text: `4th Sem (${getSemCount(4)})`, callback_data: 'admin_q_sem_4', style: 'primary' }
+                        { text: `📘 3rd Sem (${getSemCount(3)})`, callback_data: 'admin_gh_sem_3', style: 'primary' },
+                        { text: `📘 4th Sem (${getSemCount(4)})`, callback_data: 'admin_gh_sem_4', style: 'primary' }
                     ],
                     [
-                        { text: `5th Sem (${getSemCount(5)})`, callback_data: 'admin_q_sem_5', style: 'primary' },
-                        { text: `6th Sem (${getSemCount(6)})`, callback_data: 'admin_q_sem_6', style: 'primary' }
+                        { text: `📘 5th Sem (${getSemCount(5)})`, callback_data: 'admin_gh_sem_5', style: 'primary' },
+                        { text: `📘 6th Sem (${getSemCount(6)})`, callback_data: 'admin_gh_sem_6', style: 'primary' }
                     ],
                     [
-                        { text: `7th Sem (${getSemCount(7)})`, callback_data: 'admin_q_sem_7', style: 'primary' },
-                        { text: `8th Sem (${getSemCount(8)})`, callback_data: 'admin_q_sem_8', style: 'primary' }
-                    ],
-                    [
-                        { text: `🌐 All Semesters (${subscribers.length})`, callback_data: 'admin_q_sem_all', style: 'primary' }
+                        { text: `📘 7th Sem (${getSemCount(7)})`, callback_data: 'admin_gh_sem_7', style: 'primary' },
+                        { text: `📘 8th Sem (${getSemCount(8)})`, callback_data: 'admin_gh_sem_8', style: 'primary' }
                     ],
                     [
                         { text: '🔙 Back to Admin Panel', callback_data: 'admin_menu', style: 'danger' }
@@ -561,7 +639,7 @@ exports.handler = async (event) => {
                 await callTelegram('editMessageText', {
                     chat_id: userId,
                     message_id: msgId,
-                    text: qText,
+                    text,
                     parse_mode: 'HTML',
                     reply_markup: keyboard
                 });
@@ -569,96 +647,172 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Admin selects target semester for questions
-        if (data.startsWith('admin_q_sem_')) {
-            const sem = data.replace('admin_q_sem_', '');
-            const semName = sem === 'all' ? 'All Semesters' : `${sem}${getOrdinal(parseInt(sem, 10))} Semester`;
+        // Step 2: Select Exam Type (Mid or Final)
+        if (data.startsWith('admin_gh_sem_')) {
+            const semNum = parseInt(data.replace('admin_gh_sem_', ''), 10);
+            const semName = `${semNum}${getOrdinal(semNum)} Semester`;
             const subscribers = loadSubscribers();
-            const count = sem === 'all' ? subscribers.length : subscribers.filter(s => String(s.semester) === String(sem)).length;
+            const studentCount = subscribers.filter(s => String(s.semester) === String(semNum)).length;
 
             setFlowState(userId, {
-                step: 'waiting_for_questions',
-                targetSem: sem,
-                targetSemName: semName,
-                targetCount: count,
-                promptMsgId: msgId
+                step: 'select_exam_type',
+                semester: semNum,
+                semesterName: semName,
+                studentCount
             });
 
-            const promptText =
-                `📄 <b>Upload Previous Question Paper</b>\n\n` +
-                `Target Audience: <b>${semName}</b> (~${count} students)\n\n` +
-                `Please send or forward the question paper now:\n` +
-                `• PDF documents\n` +
-                `• Image question scans\n` +
-                `• Question text with drive links\n\n` +
-                `<i>Tap Cancel below to abort.</i>`;
+            const text =
+                `📝 <b>Select Exam Category for ${semName}</b>\n\n` +
+                `Target Audience: <b>${studentCount} students</b>\n\n` +
+                `Which previous exam question papers should be sent directly from GitHub?`;
+
+            const keyboard = {
+                inline_keyboard: [
+                    [
+                        { text: '📝 Mid Term Questions', callback_data: 'admin_gh_exam_Mid', style: 'primary' }
+                    ],
+                    [
+                        { text: '🎯 Final Term Questions', callback_data: 'admin_gh_exam_Final', style: 'primary' }
+                    ],
+                    [
+                        { text: '🔙 Back to Semester List', callback_data: 'admin_gh_start', style: 'danger' }
+                    ]
+                ]
+            };
 
             if (msgId) {
                 await callTelegram('editMessageText', {
                     chat_id: userId,
                     message_id: msgId,
-                    text: promptText,
+                    text,
                     parse_mode: 'HTML',
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: '❌ Cancel', callback_data: 'admin_menu', style: 'danger' }]
-                        ]
-                    }
+                    reply_markup: keyboard
                 });
             }
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Admin chooses Send Immediately for Questions
-        if (data === 'admin_q_send_now') {
+        // Step 3: Fetch Questions from GitHub and Show Preview & Options
+        if (data.startsWith('admin_gh_exam_')) {
+            const examType = data.replace('admin_gh_exam_', '');
             const state = getFlowState(userId);
-            if (!state || state.step !== 'preview_questions' || !state.msg) {
-                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ No question paper upload pending or expired.' });
+            if (!state || !state.semester) {
+                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ Session expired. Please start again from /admin.' });
                 return { statusCode: 200, headers, body: '{"ok":true}' };
             }
 
-            setFlowState(userId, null);
-            const pendingMsg = state.msg;
-            const subscribers = loadSubscribers();
-            const targetSubs = subscribers.filter(s => {
-                if (state.targetSem === 'all') return true;
-                return String(s.semester) === String(state.targetSem);
-            });
+            state.examType = examType;
+            state.step = 'preview_github_questions';
+            setFlowState(userId, state);
 
             if (msgId) {
                 await callTelegram('editMessageText', {
                     chat_id: userId,
                     message_id: msgId,
-                    text: `⏳ <b>Delivering question paper to ${state.targetSemName}...</b>\nTarget queue: ${targetSubs.length} students, please wait...`,
+                    text: `⏳ <i>Scanning GitHub repository for ${state.semesterName} (${examType} Term) questions...</i>`,
                     parse_mode: 'HTML'
                 });
             }
 
-            const startTime = Date.now();
-            let success = 0, fail = 0;
+            const ghRes = await fetchGitHubQuestions(state.semester, examType);
+            if (!ghRes.ok || ghRes.files.length === 0) {
+                const errorText =
+                    `⚠️ <b>No question papers found in repository!</b>\n\n` +
+                    `Path: <code>Semester${state.semester}/PreviousQuestions/${examType}</code>\n\n` +
+                    `Please check that the repository has files in this folder.`;
 
-            for (const sub of targetSubs) {
-                try {
-                    const res = await callTelegram('copyMessage', {
-                        chat_id: sub.id,
-                        from_chat_id: pendingMsg.chat.id,
-                        message_id: pendingMsg.message_id
+                if (msgId) {
+                    await callTelegram('editMessageText', {
+                        chat_id: userId,
+                        message_id: msgId,
+                        text: errorText,
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: '🔙 Back', callback_data: `admin_gh_sem_${state.semester}`, style: 'primary' }]
+                            ]
+                        }
                     });
-                    if (res && res.ok) success++;
-                    else fail++;
-                } catch (e) {
-                    fail++;
                 }
+                return { statusCode: 200, headers, body: '{"ok":true}' };
             }
 
-            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            state.files = ghRes.files;
+            setFlowState(userId, state);
+
+            const fileListFormatted = ghRes.files.slice(0, 8).map(f => `• 📄 <code>${f.name}</code>`).join('\n');
+            const previewText =
+                `📂 <b>GitHub Previous Questions Found!</b>\n\n` +
+                `• Semester: <b>${state.semesterName}</b>\n` +
+                `• Exam Type: <b>${examType} Term</b>\n` +
+                `• Question Papers: <b>${ghRes.files.length} PDFs found</b>\n` +
+                `• Target Students: <b>${state.studentCount} enrolled</b>\n\n` +
+                `<b>Files in Repository:</b>\n${fileListFormatted}` +
+                (ghRes.files.length > 8 ? `\n<i>...and ${ghRes.files.length - 8} more files</i>` : '') +
+                `\n\nChoose delivery option:`;
+
+            const keyboard = {
+                inline_keyboard: [
+                    [
+                        { text: `🚀 Send Immediately to ${state.semesterName}`, callback_data: 'admin_gh_send_now', style: 'primary' }
+                    ],
+                    [
+                        { text: `⏰ Schedule Auto-Send Date & Time`, callback_data: 'admin_gh_sched_menu', style: 'primary' }
+                    ],
+                    [
+                        { text: '❌ Cancel', callback_data: 'admin_menu', style: 'danger' }
+                    ]
+                ]
+            };
+
+            if (msgId) {
+                await callTelegram('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text: previewText,
+                    parse_mode: 'HTML',
+                    reply_markup: keyboard
+                });
+            }
+            return { statusCode: 200, headers, body: '{"ok":true}' };
+        }
+
+        // Send Immediately from GitHub
+        if (data === 'admin_gh_send_now') {
+            const state = getFlowState(userId);
+            if (!state || !state.semester || !state.examType) {
+                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ Session expired.' });
+                return { statusCode: 200, headers, body: '{"ok":true}' };
+            }
+
+            setFlowState(userId, null);
+
+            if (msgId) {
+                await callTelegram('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text: `⏳ <b>Delivering ${state.semesterName} ${state.examType} questions directly from GitHub...</b>\nPlease wait...`,
+                    parse_mode: 'HTML'
+                });
+            }
+
+            const taskObj = {
+                semester: state.semester,
+                semesterName: state.semesterName,
+                examType: state.examType,
+                adminChatId: userId
+            };
+
+            const result = await dispatchGitHubQuestionsToStudents(taskObj);
+
             const report =
-                `✅ <b>Previous Questions Delivered!</b>\n\n` +
-                `• Target: <b>${state.targetSemName}</b>\n` +
-                `• Successfully Sent: <b>${success}</b>\n` +
-                `• Failed / Blocked: <b>${fail}</b>\n` +
-                `• Total Targeted: <b>${targetSubs.length}</b>\n` +
-                `• Duration: <b>${elapsed}s</b>`;
+                `✅ <b>Previous Questions Delivered from GitHub!</b>\n\n` +
+                `• Semester: <b>${state.semesterName}</b>\n` +
+                `• Exam Type: <b>${state.examType} Term</b>\n` +
+                `• Question Papers Sent: <b>${result.fileCount || 0} PDFs</b>\n` +
+                `• Successfully Delivered: <b>${result.success} students</b>\n` +
+                `• Failed / Blocked: <b>${result.fail}</b>` +
+                (result.error ? `\n\n⚠️ <i>Note: ${result.error}</i>` : '');
 
             await callTelegram('sendMessage', {
                 chat_id: userId,
@@ -673,39 +827,39 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Admin chooses Schedule Auto-Send Options for Questions
-        if (data === 'admin_q_schedule_options') {
+        // Step 4: Schedule Menu (Date & Time)
+        if (data === 'admin_gh_sched_menu') {
             const state = getFlowState(userId);
-            if (!state || state.step !== 'preview_questions' || !state.msg) {
-                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ No question upload found.' });
+            if (!state || !state.semester) {
+                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ Session expired.' });
                 return { statusCode: 200, headers, body: '{"ok":true}' };
             }
 
             state.step = 'waiting_for_schedule_time';
             setFlowState(userId, state);
 
-            const schedText =
-                `⏰ <b>Schedule Auto-Send for ${state.targetSemName}</b>\n\n` +
-                `When should the bot automatically send this question paper?\n\n` +
-                `Tap a quick delay below, OR reply in chat with a specific date & time (e.g. <code>tomorrow 10am</code>, <code>2026-10-15 14:30</code>, or <code>45m</code>):`;
+            const text =
+                `⏰ <b>Schedule Auto-Send for ${state.semesterName} (${state.examType} Term)</b>\n\n` +
+                `When should the bot automatically send these previous question papers to students?\n\n` +
+                `Tap a quick time below, OR reply in chat with a specific date & time (e.g. <code>tomorrow 10am</code>, <code>2026-10-15 14:00</code>, or <code>45m</code>):`;
 
             const keyboard = {
                 inline_keyboard: [
                     [
-                        { text: '⏱️ In 15 Minutes', callback_data: 'admin_q_sched_15m', style: 'primary' },
-                        { text: '⏱️ In 30 Minutes', callback_data: 'admin_q_sched_30m', style: 'primary' }
+                        { text: '⏱️ In 15 Minutes', callback_data: 'admin_gh_sched_15m', style: 'primary' },
+                        { text: '⏱️ In 30 Minutes', callback_data: 'admin_gh_sched_30m', style: 'primary' }
                     ],
                     [
-                        { text: '⏱️ In 1 Hour', callback_data: 'admin_q_sched_1h', style: 'primary' },
-                        { text: '⏱️ In 3 Hours', callback_data: 'admin_q_sched_3h', style: 'primary' }
+                        { text: '⏱️ In 1 Hour', callback_data: 'admin_gh_sched_1h', style: 'primary' },
+                        { text: '⏱️ In 3 Hours', callback_data: 'admin_gh_sched_3h', style: 'primary' }
                     ],
                     [
-                        { text: '⏱️ In 6 Hours', callback_data: 'admin_q_sched_6h', style: 'primary' },
-                        { text: '⏱️ In 12 Hours', callback_data: 'admin_q_sched_12h', style: 'primary' }
+                        { text: '⏱️ In 6 Hours', callback_data: 'admin_gh_sched_6h', style: 'primary' },
+                        { text: '⏱️ In 12 Hours', callback_data: 'admin_gh_sched_12h', style: 'primary' }
                     ],
                     [
-                        { text: '🌅 Tomorrow 9:00 AM', callback_data: 'admin_q_sched_tomorrow_9am', style: 'primary' },
-                        { text: '🌙 Tomorrow 8:00 PM', callback_data: 'admin_q_sched_tomorrow_8pm', style: 'primary' }
+                        { text: '🌅 Tomorrow 9:00 AM', callback_data: 'admin_gh_sched_tomorrow_9am', style: 'primary' },
+                        { text: '🌙 Tomorrow 8:00 PM', callback_data: 'admin_gh_sched_tomorrow_8pm', style: 'primary' }
                     ],
                     [
                         { text: '❌ Cancel', callback_data: 'admin_menu', style: 'danger' }
@@ -717,7 +871,7 @@ exports.handler = async (event) => {
                 await callTelegram('editMessageText', {
                     chat_id: userId,
                     message_id: msgId,
-                    text: schedText,
+                    text,
                     parse_mode: 'HTML',
                     reply_markup: keyboard
                 });
@@ -726,11 +880,11 @@ exports.handler = async (event) => {
         }
 
         // Quick schedule delay selected
-        if (data.startsWith('admin_q_sched_')) {
-            const delayKey = data.replace('admin_q_sched_', '');
+        if (data.startsWith('admin_gh_sched_')) {
+            const delayKey = data.replace('admin_gh_sched_', '');
             const state = getFlowState(userId);
-            if (!state || !state.msg) {
-                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ No pending question paper found.' });
+            if (!state || !state.semester) {
+                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ Session expired.' });
                 return { statusCode: 200, headers, body: '{"ok":true}' };
             }
 
@@ -765,12 +919,13 @@ exports.handler = async (event) => {
             const tasks = loadScheduledTasks();
             const newTask = {
                 id: 'task_' + Date.now(),
-                targetSemester: state.targetSem,
-                targetSemName: state.targetSemName,
+                type: 'github_questions',
+                semester: state.semester,
+                semesterName: state.semesterName,
+                examType: state.examType,
                 scheduledTime: targetTime,
                 scheduledTimeFormatted: targetDateStr,
-                fromChatId: state.msg.chat.id,
-                messageId: state.msg.message_id,
+                adminChatId: userId,
                 status: 'pending',
                 createdAt: new Date().toISOString()
             };
@@ -781,10 +936,11 @@ exports.handler = async (event) => {
 
             const confirmText =
                 `✅ <b>Auto-Send Scheduled Successfully!</b>\n\n` +
-                `• Target: <b>${state.targetSemName}</b> (~${state.targetCount} students)\n` +
-                `• Delivery Time: <b>${targetDateStr}</b> (${label})\n` +
-                `• Cloud Scheduler: <b>Active (24/7)</b>\n\n` +
-                `The bot will automatically deliver the previous questions to all <b>${state.targetSemName}</b> students at the scheduled time.`;
+                `• Semester: <b>${state.semesterName}</b> (~${state.studentCount} students)\n` +
+                `• Exam Type: <b>${state.examType} Term</b>\n` +
+                `• Delivery Date & Time: <b>${targetDateStr}</b> (${label})\n` +
+                `• Source: <b>GitHub Repository (${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME})</b>\n\n` +
+                `The bot will automatically fetch the previous question PDFs from GitHub and deliver them directly to all <b>${state.semesterName}</b> students when the time arrives.`;
 
             if (msgId) {
                 await callTelegram('editMessageText', {
@@ -815,9 +971,9 @@ exports.handler = async (event) => {
                 text += `<i>No auto-send tasks currently scheduled.</i>`;
             } else {
                 pendingTasks.forEach((t, i) => {
-                    text += `<b>#${i + 1}. ${t.targetSemName}</b>\n• Auto-Send: <code>${t.scheduledTimeFormatted}</code>\n\n`;
+                    text += `<b>#${i + 1}. ${t.semesterName} (${t.examType || 'Questions'})</b>\n• Scheduled Time: <code>${t.scheduledTimeFormatted}</code>\n\n`;
                     buttons.push([{
-                        text: `❌ Cancel Task #${i + 1} (${t.targetSemName})`,
+                        text: `❌ Cancel Task #${i + 1} (${t.semesterName} - ${t.examType})`,
                         callback_data: `admin_sched_del_${t.id}`,
                         style: 'danger'
                     }]);
@@ -860,9 +1016,9 @@ exports.handler = async (event) => {
                 text += `<i>No auto-send tasks currently scheduled.</i>`;
             } else {
                 pendingTasks.forEach((t, i) => {
-                    text += `<b>#${i + 1}. ${t.targetSemName}</b>\n• Auto-Send: <code>${t.scheduledTimeFormatted}</code>\n\n`;
+                    text += `<b>#${i + 1}. ${t.semesterName} (${t.examType || 'Questions'})</b>\n• Scheduled Time: <code>${t.scheduledTimeFormatted}</code>\n\n`;
                     buttons.push([{
-                        text: `❌ Cancel Task #${i + 1} (${t.targetSemName})`,
+                        text: `❌ Cancel Task #${i + 1} (${t.semesterName} - ${t.examType})`,
                         callback_data: `admin_sched_del_${t.id}`,
                         style: 'danger'
                     }]);
@@ -884,7 +1040,7 @@ exports.handler = async (event) => {
         }
 
         // ---------------------------------------------------------------------
-        // ADMIN: GENERAL BROADCAST ACTIONS
+        // ADMIN: GENERAL ANNOUNCEMENT BROADCAST
         // ---------------------------------------------------------------------
         if (data === 'admin_broadcast_start') {
             setFlowState(userId, { step: 'waiting_for_broadcast', promptMsgId: msgId });
@@ -946,7 +1102,6 @@ exports.handler = async (event) => {
                 });
             }
 
-            const startTime = Date.now();
             let successCount = 0;
             let failCount = 0;
 
@@ -964,13 +1119,11 @@ exports.handler = async (event) => {
                 }
             }
 
-            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
             const reportText =
                 `✅ <b>General Announcement Broadcast Completed!</b>\n\n` +
                 `• Successfully Sent: <b>${successCount}</b>\n` +
                 `• Failed / Blocked: <b>${failCount}</b>\n` +
-                `• Total Queue: <b>${subscribers.length}</b>\n` +
-                `• Duration: <b>${elapsed}s</b>`;
+                `• Total Queue: <b>${subscribers.length}</b>`;
 
             await callTelegram('sendMessage', {
                 chat_id: userId,
@@ -1036,6 +1189,7 @@ exports.handler = async (event) => {
                 `• Engine: <b>Netlify Serverless Cloud (24/7)</b>\n` +
                 `• Registered Subscribers: <b>${subscribers.length}</b>\n` +
                 `• Pending Auto-Sends: <b>${tasks.length}</b>\n` +
+                `• Repository: <b>${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}</b>\n` +
                 `• Live Portal: <b>https://cseresourceofiiuc.netlify.app</b>`;
 
             if (msgId) {
@@ -1063,7 +1217,7 @@ exports.handler = async (event) => {
     }
 
     // =========================================================================
-    // 6. PROCESS CHAT MESSAGES
+    // 7. PROCESS CHAT MESSAGES
     // =========================================================================
     if (update.message) {
         const msg = update.message;
@@ -1075,52 +1229,9 @@ exports.handler = async (event) => {
         const isAdmin = (userId === String(ADMIN_ID));
         const text = (msg.text || '').trim();
 
-        // ---------------------------------------------------------------------
-        // Check Admin Flow States (Question upload or Custom Schedule Time)
-        // ---------------------------------------------------------------------
         const flowState = isAdmin ? getFlowState(userId) : null;
 
-        // Step A: Admin uploads question paper for a semester
-        if (isAdmin && flowState && flowState.step === 'waiting_for_questions') {
-            if (text === '/cancel' || text.toLowerCase() === 'cancel') {
-                setFlowState(userId, null);
-                const panel = getAdminPanelPayload();
-                await callTelegram('sendMessage', {
-                    chat_id: userId,
-                    text: '❌ Question upload cancelled.\n\n' + panel.text,
-                    parse_mode: 'HTML',
-                    reply_markup: panel.reply_markup
-                });
-                return { statusCode: 200, headers, body: '{"ok":true}' };
-            }
-
-            // Save question paper preview
-            flowState.step = 'preview_questions';
-            flowState.msg = msg;
-            setFlowState(userId, flowState);
-
-            await callTelegram('copyMessage', {
-                chat_id: userId,
-                from_chat_id: msg.chat.id,
-                message_id: msg.message_id,
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { text: `🚀 Send Now to ${flowState.targetSemName}`, callback_data: 'admin_q_send_now', style: 'primary' }
-                        ],
-                        [
-                            { text: `⏰ Schedule Auto-Send Date/Time`, callback_data: 'admin_q_schedule_options', style: 'primary' }
-                        ],
-                        [
-                            { text: '❌ Cancel', callback_data: 'admin_menu', style: 'danger' }
-                        ]
-                    ]
-                }
-            });
-            return { statusCode: 200, headers, body: '{"ok":true}' };
-        }
-
-        // Step B: Admin replies with custom date/time for scheduling
+        // Admin custom schedule date/time text input
         if (isAdmin && flowState && flowState.step === 'waiting_for_schedule_time') {
             if (text === '/cancel' || text.toLowerCase() === 'cancel') {
                 setFlowState(userId, null);
@@ -1134,7 +1245,6 @@ exports.handler = async (event) => {
                 return { statusCode: 200, headers, body: '{"ok":true}' };
             }
 
-            // Parse custom date/time or minute delay (e.g., '30m', '2h', or ISO date)
             let parsedTime = NaN;
             if (/^\d+\s*m(in)?/i.test(text)) {
                 const mins = parseInt(text, 10);
@@ -1165,12 +1275,13 @@ exports.handler = async (event) => {
             const tasks = loadScheduledTasks();
             const newTask = {
                 id: 'task_' + Date.now(),
-                targetSemester: flowState.targetSem,
-                targetSemName: flowState.targetSemName,
+                type: 'github_questions',
+                semester: flowState.semester,
+                semesterName: flowState.semesterName,
+                examType: flowState.examType,
                 scheduledTime: parsedTime,
                 scheduledTimeFormatted: targetDateStr,
-                fromChatId: flowState.msg.chat.id,
-                messageId: flowState.msg.message_id,
+                adminChatId: userId,
                 status: 'pending',
                 createdAt: new Date().toISOString()
             };
@@ -1183,10 +1294,11 @@ exports.handler = async (event) => {
                 chat_id: userId,
                 text:
                     `✅ <b>Auto-Send Scheduled Successfully!</b>\n\n` +
-                    `• Target: <b>${flowState.targetSemName}</b> (~${flowState.targetCount} students)\n` +
-                    `• Delivery Time: <b>${targetDateStr}</b>\n` +
-                    `• Cloud Scheduler: <b>Active (24/7)</b>\n\n` +
-                    `The bot will automatically deliver the previous questions to all <b>${flowState.targetSemName}</b> students when the time arrives.`,
+                    `• Semester: <b>${flowState.semesterName}</b> (~${flowState.studentCount} students)\n` +
+                    `• Exam Category: <b>${flowState.examType} Term</b>\n` +
+                    `• Scheduled Time: <b>${targetDateStr}</b>\n` +
+                    `• Source: <b>GitHub Repository (${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME})</b>\n\n` +
+                    `The bot will automatically fetch the previous question PDFs from GitHub and deliver them to all <b>${flowState.semesterName}</b> students when the time arrives.`,
                 parse_mode: 'HTML',
                 reply_markup: {
                     inline_keyboard: [
@@ -1198,7 +1310,7 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Step C: Admin in general broadcast mode
+        // Admin general broadcast message
         if (isAdmin && flowState && flowState.step === 'waiting_for_broadcast') {
             if (text === '/cancel' || text.toLowerCase() === 'cancel') {
                 setFlowState(userId, null);
@@ -1233,7 +1345,7 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Step D: Admin typed /broadcast <message>
+        // Admin typed /broadcast <message>
         if (isAdmin && (text.startsWith('/broadcast') || text.startsWith('/bc'))) {
             const content = text.replace(/^\/(broadcast|bc)\s*/i, '').trim();
             if (!content) {
@@ -1264,7 +1376,7 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Step E: Open Admin Panel
+        // Open Admin Panel
         if (isAdmin && (text === '/admin' || text === '👑 Admin Panel' || text.toLowerCase() === 'admin' || text.toLowerCase().includes('admin panel'))) {
             const panel = getAdminPanelPayload();
             await callTelegram('sendMessage', {
@@ -1276,7 +1388,7 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Step F: /semester command for any user to select/change semester
+        // Student /semester command
         if (text === '/semester' || text.toLowerCase() === 'semester' || text.toLowerCase().includes('change semester')) {
             const currentSem = user && user.semester ? `\n(Current: <b>${user.semester_name || user.semester + 'th Semester'}</b>)` : '';
             await callTelegram('sendMessage', {
@@ -1288,7 +1400,7 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Step G: /start command
+        // /start command
         if (text === '/start') {
             if (isAdmin) {
                 await callTelegram('sendMessage', {
@@ -1305,7 +1417,6 @@ exports.handler = async (event) => {
                     reply_markup: panel.reply_markup
                 });
             } else {
-                // If user didn't set their semester yet, ask immediately!
                 if (!user || !user.semester) {
                     await callTelegram('sendMessage', {
                         chat_id: userId,
