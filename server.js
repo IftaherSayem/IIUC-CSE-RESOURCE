@@ -63,16 +63,18 @@ for (const p of possiblePaths) {
 }
 
 // 24/7 Background Scheduler Loop (checks every 10 seconds for exact-second auto-send delivery)
-if (telegramModule && typeof telegramModule.executeDueTasks === 'function') {
-    setInterval(async () => {
-        try {
+setInterval(async () => {
+    try {
+        if (telegramModule && typeof telegramModule.executeDueTasks === 'function') {
             await telegramModule.executeDueTasks();
-        } catch (e) {
-            console.error('[SERVER] 24/7 Scheduler execution error:', e.message);
         }
-    }, 10000);
-    console.log('[SERVER] 24/7 Auto-Send Scheduler loop active (checking every 10s)');
-}
+        // Heartbeat ping to Netlify serverless endpoint so Netlify never sleeps and executes on time
+        https.get('https://cseresourceofiiuc.netlify.app/.netlify/functions/telegram', () => {}).on('error', () => {});
+    } catch (e) {
+        console.error('[SERVER] 24/7 Scheduler execution error:', e.message);
+    }
+}, 10000);
+console.log('[SERVER] 24/7 Auto-Send Scheduler loop active (checking & pinging every 10s)');
 
 // In-memory cache for GitHub API responses
 const githubCache = {};
