@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const crypto = require('crypto');
+const https = require('https');
 
 // Lightweight native .env loader (Zero dependency, works on all Node versions)
 function loadEnv() {
@@ -410,6 +411,16 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
+    if (pathname === '/api/telegram-webhook' && req.method === 'POST') {
+        try {
+            const body = await parseBody(req);
+            processTelegramUpdate(body).catch(e => console.error('[WEBHOOK] Error:', e.message));
+            return sendJson(res, 200, { ok: true });
+        } catch (err) {
+            return sendJson(res, 400, { ok: false, error: err.message });
+        }
+    }
+
     // 6. Static File Server for frontend Mini App
     let targetPath = (pathname === '/' || !pathname) ? '/index.html' : pathname;
 
@@ -444,10 +455,11 @@ const server = http.createServer(async (req, res) => {
 const ADMIN_ID = String(ADMIN_CHAT_ID);
 const adminBroadcastState = new Map(); // adminId -> { step, msg }
 
-// Helper for calling Telegram API directly
-async function callTelegramApi(method, payload = {}) {
-    const activeToken = BOT_TOKEN;
-    const apiUrl = `https://api.telegram.org/bot${activeToken}/${method}`;
+// Direct HTTPS Agent with connection pooling & keep-alive
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 50, keepAliveMsecs: 10000 });
+
+// Helper for calling Telegram API directly via HTTPS (IPv4 / connection-resilient)
+function callTelegramApi(method, payload = {}, timeoutMs = 15000) {
     const validStyles = ['primary', 'success', 'danger'];
 
     if (payload && payload.reply_markup) {
@@ -471,17 +483,54 @@ async function callTelegramApi(method, payload = {}) {
         }
     }
 
-    try {
-        const res = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        return await res.json();
-    } catch (err) {
-        console.error(`[TELEGRAM] ${method} error:`, err.message);
-        return { ok: false, error: err.message };
-    }
+    return new Promise((resolve) => {
+        let attempts = 0;
+        const postData = JSON.stringify(payload);
+
+        function doRequest() {
+            attempts++;
+            const urlObj = new URL(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`);
+            const req = https.request({
+                hostname: urlObj.hostname,
+                path: urlObj.pathname,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(postData)
+                },
+                agent: httpsAgent,
+                timeout: timeoutMs
+            }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    try {
+                        resolve(JSON.parse(data));
+                    } catch (e) {
+                        resolve({ ok: false, error: 'JSON parse error' });
+                    }
+                });
+            });
+
+            req.on('error', (err) => {
+                if (attempts < 2 && (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT')) {
+                    setTimeout(doRequest, 150);
+                } else {
+                    resolve({ ok: false, error: err.message });
+                }
+            });
+
+            req.on('timeout', () => {
+                req.destroy();
+                resolve({ ok: false, error: 'Request timeout' });
+            });
+
+            req.write(postData);
+            req.end();
+        }
+
+        doRequest();
+    });
 }
 
 // Register user into subscribers database
@@ -551,6 +600,37 @@ async function processTelegramUpdate(update) {
         const isAdmin = (userId === ADMIN_ID);
         const text = (msg.text || '').trim();
 
+        // Check if Admin typed /broadcast <message>
+        if (isAdmin && (text.startsWith('/broadcast') || text.startsWith('/bc'))) {
+            const content = text.replace(/^\/(broadcast|bc)\s*/i, '').trim();
+            if (!content) {
+                await callTelegramApi('sendMessage', {
+                    chat_id: userId,
+                    text: '⚠️ Usage: <code>/broadcast Your announcement message here</code>',
+                    parse_mode: 'HTML'
+                });
+                return;
+            }
+
+            adminBroadcastState.set(userId, { step: 'preview', msg: msg });
+            const subscribers = loadSubscribers();
+
+            await callTelegramApi('sendMessage', {
+                chat_id: userId,
+                text: `📢 <b>Broadcast Preview</b>\n\nRecipients: <b>${subscribers.length} subscribers</b>\n\n${content}`,
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: `✅ Send Now (to ~${subscribers.length} users)`, callback_data: 'admin_broadcast_confirm', style: 'primary' },
+                            { text: '❌ Cancel', callback_data: 'admin_broadcast_cancel', style: 'danger' }
+                        ]
+                    ]
+                }
+            });
+            return;
+        }
+
         // Check if Admin is in waiting_for_message broadcast step
         if (isAdmin && adminBroadcastState.has(userId) && adminBroadcastState.get(userId).step === 'waiting_for_message') {
             if (text === '/cancel' || text.toLowerCase() === 'cancel') {
@@ -587,7 +667,7 @@ async function processTelegramUpdate(update) {
         }
 
         // Admin command to open inline admin panel
-        if (isAdmin && (text === '/admin' || text === '👑 Admin Panel' || text.toLowerCase() === 'admin')) {
+        if (isAdmin && (text === '/admin' || text === '👑 Admin Panel' || text.toLowerCase() === 'admin' || text.toLowerCase().includes('admin panel'))) {
             const panel = getAdminPanelPayload();
             await callTelegramApi('sendMessage', {
                 chat_id: userId,
@@ -853,19 +933,22 @@ async function runTelegramBotPolling() {
 
     while (isBotPollingActive) {
         try {
-            const activeToken = BOT_TOKEN;
-            const res = await fetch(`https://api.telegram.org/bot${activeToken}/getUpdates?offset=${botPollOffset}&timeout=25`);
-            const data = await res.json();
+            const data = await callTelegramApi('getUpdates', {
+                offset: botPollOffset,
+                timeout: 20,
+                allowed_updates: ['message', 'callback_query']
+            }, 30000);
 
-            if (data.ok && Array.isArray(data.result)) {
+            if (data && data.ok && Array.isArray(data.result)) {
                 for (const update of data.result) {
                     botPollOffset = update.update_id + 1;
                     await processTelegramUpdate(update);
                 }
             }
         } catch (err) {
-            await new Promise(r => setTimeout(r, 4000));
+            console.error('[TELEGRAM] Poll loop error:', err.message);
         }
+        await new Promise(r => setTimeout(r, 400));
     }
 }
 

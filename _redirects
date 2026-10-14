@@ -1,3 +1,5 @@
-/acc/ad      /    301
-/acc/ad/*    /    301
-/admin.html  /    301
+/api/telegram-webhook    /.netlify/functions/telegram    200
+/api/users               /.netlify/functions/users       200
+/acc/ad                  /                               301
+/acc/ad/*                /                               301
+/admin.html              /                               301
