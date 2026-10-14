@@ -407,6 +407,9 @@ function getAdminPanelPayload() {
                 { text: '📚 Auto-Send Previous Questions (GitHub)', callback_data: 'admin_gh_start', style: 'primary' }
             ],
             [
+                { text: '🎓 Broadcast: Set Semester Button', callback_data: 'admin_prompt_sem_broadcast', style: 'primary' }
+            ],
+            [
                 { text: '📢 General Announcement Broadcast', callback_data: 'admin_broadcast_start', style: 'primary' }
             ],
             [
@@ -611,6 +614,65 @@ async function executeDueTasks() {
 }
 
 // -------------------------------------------------------------
+// 4.5 BROADCAST SEMESTER PROMPT WITH INLINE BUTTON TO ALL USERS
+// -------------------------------------------------------------
+async function broadcastSemesterSelectionPrompt(adminChatId = ADMIN_ID) {
+    const subscribers = loadSubscribers();
+    let success = 0;
+    let fail = 0;
+
+    const messageText =
+        `👋 <b>Assalamu Alaikum & Welcome to IIUC CSE Resource Hub Bot!</b>\n\n` +
+        `We deliver previous semester exam question papers (Mid & Final Term), solutions, and study resources tailored to your semester.\n\n` +
+        `<blockquote>👇 Please select your current semester below so we can automatically deliver previous exam questions before your exams:</blockquote>`;
+
+    const replyMarkup = {
+        inline_keyboard: [
+            [{ text: '📘 Select Your Semester (1st – 8th)', callback_data: 'select_semester', style: 'primary' }],
+            [{ text: '🌐 Browse Web App Portal', web_app: { url: 'https://cseresourceofiiuc.netlify.app' } }]
+        ]
+    };
+
+    for (const sub of subscribers) {
+        try {
+            const res = await callTelegram('sendMessage', {
+                chat_id: sub.id,
+                text: messageText,
+                parse_mode: 'HTML',
+                reply_markup: replyMarkup
+            });
+            if (res && res.ok) success++;
+            else fail++;
+        } catch (e) {
+            fail++;
+        }
+        await new Promise(r => setTimeout(r, 60)); // smooth Telegram rate-limiting
+    }
+
+    if (adminChatId) {
+        try {
+            await callTelegram('sendMessage', {
+                chat_id: adminChatId,
+                text:
+                    `✅ <b>Semester Setup Broadcast Delivered!</b>\n\n` +
+                    `• Successfully Sent: <b>${success}</b>\n` +
+                    `• Failed / Blocked: <b>${fail}</b>\n` +
+                    `• Total Target Queue: <b>${subscribers.length} students</b>\n\n` +
+                    `All recipients received the interactive <b>[ 📘 Select Your Semester ]</b> inline button!`,
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '👑 Back to Admin Panel', callback_data: 'admin_menu', style: 'primary' }]
+                    ]
+                }
+            });
+        } catch (e) {}
+    }
+
+    return { success, fail, total: subscribers.length };
+}
+
+// -------------------------------------------------------------
 // 5. MAIN NETLIFY SERVERLESS WEBHOOK HANDLER
 // -------------------------------------------------------------
 exports.handler = async (event) => {
@@ -621,6 +683,16 @@ exports.handler = async (event) => {
     };
 
     if (event.httpMethod === 'GET') {
+        const query = event.queryStringParameters || {};
+        if (query.action === 'broadcast_semester') {
+            const result = await broadcastSemesterSelectionPrompt(query.admin || ADMIN_ID);
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({ ok: true, action: 'broadcast_semester', result })
+            };
+        }
+
         await executeDueTasks();
         return {
             statusCode: 200,
@@ -1155,6 +1227,59 @@ exports.handler = async (event) => {
                     reply_markup: { inline_keyboard: buttons }
                 });
             }
+            return { statusCode: 200, headers, body: '{"ok":true}' };
+        }
+
+        // ---------------------------------------------------------------------
+        // ADMIN: BROADCAST SEMESTER SELECTION PROMPT WITH INLINE BUTTON
+        // ---------------------------------------------------------------------
+        if (data === 'admin_prompt_sem_broadcast') {
+            const subscribers = loadSubscribers();
+            const previewText =
+                `📢 <b>Broadcast Semester Setup Button to All Users</b>\n\n` +
+                `Target Audience: <b>${subscribers.length} subscribers</b>\n\n` +
+                `<b>Preview of what students will receive:</b>\n` +
+                `────────────────────────\n` +
+                `👋 <b>Assalamu Alaikum & Welcome to IIUC CSE Resource Hub Bot!</b>\n\n` +
+                `We deliver previous semester exam question papers (Mid & Final Term), solutions, and study resources tailored to your semester.\n\n` +
+                `<blockquote>👇 Please select your current semester below so we can automatically deliver previous exam questions before your exams:</blockquote>\n` +
+                `[ 📘 Select Your Semester (1st – 8th) ]\n` +
+                `────────────────────────\n\n` +
+                `<i>Tap confirm below to dispatch this message with the inline button to all ${subscribers.length} students now:</i>`;
+
+            const keyboard = {
+                inline_keyboard: [
+                    [
+                        { text: `🚀 Confirm & Send to All (${subscribers.length})`, callback_data: 'admin_confirm_sem_broadcast', style: 'primary' }
+                    ],
+                    [
+                        { text: '❌ Cancel', callback_data: 'admin_menu', style: 'danger' }
+                    ]
+                ]
+            };
+
+            if (msgId) {
+                await callTelegram('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text: previewText,
+                    parse_mode: 'HTML',
+                    reply_markup: keyboard
+                });
+            }
+            return { statusCode: 200, headers, body: '{"ok":true}' };
+        }
+
+        if (data === 'admin_confirm_sem_broadcast') {
+            if (msgId) {
+                await callTelegram('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text: `⏳ <b>Broadcasting semester selection prompt to all subscribers in progress...</b>\nPlease wait a moment...`,
+                    parse_mode: 'HTML'
+                });
+            }
+            await broadcastSemesterSelectionPrompt(userId);
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
