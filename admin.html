@@ -952,7 +952,7 @@
                     <div class="inline-btn-section">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                             <label class="form-label" style="margin-bottom: 0;">
-                                <i class="fas fa-th"></i> Telegram Buttons (Ishan Bhai Bot Reference &amp; Style)
+                                <i class="fas fa-crown"></i> Telegram Button (Admin Panel - Primary Style)
                             </label>
                             <button type="button" class="btn-add-action" onclick="addInlineButton()">
                                 <i class="fas fa-plus"></i> Add Button
@@ -962,18 +962,17 @@
                         <!-- Layout & Style Controls -->
                         <div style="display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
-                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Button Layout &amp; Menu Type</label>
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Button Layout</label>
                                 <select id="buttonLayout" class="form-control" onchange="updatePreview()">
-                                    <option value="grid" selected>🎛️ 4-Button 2x2 Grid (2 Buttons / Row - Ishan Bot)</option>
-                                    <option value="4lines">☰ 4 Lines (1 Button per Line - Full Width Stack)</option>
-                                    <option value="keyboard">⊞ 4-Dot Menu Keyboard (Reply Keyboard)</option>
+                                    <option value="single" selected>☰ Single Button (Full Width - Admin Panel)</option>
+                                    <option value="grid">🎛️ 2 Columns Grid</option>
                                 </select>
                             </div>
                             <div style="flex: 1; min-width: 200px;">
-                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Default Button Style</label>
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Button Style</label>
                                 <select id="buttonColorStyle" class="form-control" onchange="updatePreview()">
-                                    <option value="success" selected>🟢 Vibrant Green (style: 'success' - Ishan Bot)</option>
-                                    <option value="primary">🔵 Telegram Ocean Blue (style: 'primary')</option>
+                                    <option value="primary" selected>🔵 Telegram Ocean Blue (style: 'primary')</option>
+                                    <option value="success">🟢 Vibrant Green (style: 'success')</option>
                                     <option value="danger">🔴 Crimson Red (style: 'danger')</option>
                                 </select>
                             </div>
@@ -985,13 +984,9 @@
 
                         <!-- Presets -->
                         <div class="presets-row">
-                            <span style="font-size: 0.75rem; color: var(--light-text); display: flex; align-items: center;">Quick Presets:</span>
-                            <span class="preset-badge" onclick="applyPreset('4grid')" style="border-color: #10b981; color: #10b981; font-weight: 600;">🎛️ 4-Button 2x2 Grid</span>
-                            <span class="preset-badge" onclick="applyPreset('4lines')" style="border-color: #10b981; color: #10b981; font-weight: 600;">☰ 4 Lines (1 per Row)</span>
-                            <span class="preset-badge" onclick="applyPreset('keyboard')" style="border-color: #38bdf8; color: #38bdf8; font-weight: 600;">⊞ 4-Dot Menu Keyboard</span>
-                            <span class="preset-badge" onclick="applyPreset('webapp')">🟢 Open Hub</span>
-                            <span class="preset-badge" onclick="applyPreset('channel')">📢 Channel</span>
-                            <span class="preset-badge" onclick="applyPreset('support')">💬 Support</span>
+                            <span style="font-size: 0.75rem; color: var(--light-text); display: flex; align-items: center;">Quick Actions:</span>
+                            <span class="preset-badge" onclick="applyPreset('admin_panel')" style="border-color: #0088cc; color: #0088cc; font-weight: 600;">👑 Reset to Admin Panel (Primary)</span>
+                            <span class="preset-badge" onclick="sendAdminPanelToTelegram()" style="border-color: #2ec4b6; color: #2ec4b6; font-weight: 600;"><i class="fab fa-telegram-plane"></i> Send Admin Button to My Telegram</span>
                         </div>
                     </div>
 
@@ -1164,12 +1159,11 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
         let isBroadcasting = false;
         let shouldStopBroadcast = false;
 
-        // Initialize default 4 buttons (Ishan Bhai bot configuration reference)
+        const ADMIN_PANEL_URL = window.location.origin ? (window.location.origin + '/acc/ad/') : 'https://iiuc-cse-resource.netlify.app/acc/ad/';
+
+        // Initialize single button: 👑 Admin Panel (style: 'primary') per user requirement
         inlineButtons = [
-            { text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' },
-            { text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' },
-            { text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' },
-            { text: '📚 Materials', type: 'webapp', url: CURRENT_APP_URL, style: 'success' }
+            { text: '👑 Admin Panel', type: 'webapp', url: ADMIN_PANEL_URL, style: 'primary' }
         ];
 
         // Theme Setup
@@ -1377,7 +1371,7 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
                 text: 'New Button',
                 type: 'url',
                 url: 'https://',
-                style: 'success'
+                style: 'primary'
             });
             renderInlineButtons();
         }
@@ -1408,51 +1402,48 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
         }
 
         function applyPreset(type) {
-            if (type === '4grid') {
+            if (type === 'admin_panel') {
                 inlineButtons = [
-                    { text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' },
-                    { text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' },
-                    { text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' },
-                    { text: '📚 Materials', type: 'webapp', url: CURRENT_APP_URL, style: 'success' }
+                    { text: '👑 Admin Panel', type: 'webapp', url: ADMIN_PANEL_URL, style: 'primary' }
                 ];
-                if (document.getElementById('buttonLayout')) document.getElementById('buttonLayout').value = 'grid';
+                if (document.getElementById('buttonLayout')) document.getElementById('buttonLayout').value = 'single';
+                if (document.getElementById('buttonColorStyle')) document.getElementById('buttonColorStyle').value = 'primary';
                 renderInlineButtons();
-                showToast('Applied 4-Button 2x2 Grid preset (Ishan Bhai bot style)', 'success');
-                return;
-            }
-            if (type === '4lines') {
-                inlineButtons = [
-                    { text: '🟢 Open Resource Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' },
-                    { text: '📢 Join Official Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' },
-                    { text: '💬 Contact Admin Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' },
-                    { text: '📚 Download Past Materials', type: 'webapp', url: CURRENT_APP_URL, style: 'success' }
-                ];
-                if (document.getElementById('buttonLayout')) document.getElementById('buttonLayout').value = '4lines';
-                renderInlineButtons();
-                showToast('Applied 4-Line Buttons preset (1 button per row)', 'success');
-                return;
-            }
-            if (type === 'keyboard') {
-                inlineButtons = [
-                    { text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' },
-                    { text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' },
-                    { text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' },
-                    { text: '📚 Materials', type: 'webapp', url: CURRENT_APP_URL, style: 'success' }
-                ];
-                if (document.getElementById('buttonLayout')) document.getElementById('buttonLayout').value = 'keyboard';
-                renderInlineButtons();
-                showToast('Applied 4-Dot Menu Keyboard preset (ReplyKeyboardMarkup)', 'success');
+                showToast('Reset to 👑 Admin Panel button (style: primary)', 'success');
                 return;
             }
             if (type === 'webapp') {
-                inlineButtons.push({ text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' });
-            } else if (type === 'channel') {
-                inlineButtons.push({ text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' });
-            } else if (type === 'support') {
-                inlineButtons.push({ text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' });
+                inlineButtons.push({ text: '👑 Admin Panel', type: 'webapp', url: ADMIN_PANEL_URL, style: 'primary' });
             }
             renderInlineButtons();
-            showToast('Preset button added', 'success');
+            showToast('Button updated', 'success');
+        }
+
+        // Send Admin Panel button directly to admin's Telegram
+        async function sendAdminPanelToTelegram() {
+            showToast('Sending 👑 Admin Panel button to your Telegram...', 'info');
+            try {
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: '👑 Admin Panel', web_app: { url: ADMIN_PANEL_URL }, style: 'primary' }
+                        ]
+                    ]
+                };
+                const res = await sendTelegramItem(
+                    ADMIN_CHAT_ID,
+                    '👑 <b>Admin Control Panel</b>\n\nAccess the broadcast dashboard directly inside Telegram:',
+                    null,
+                    replyMarkup
+                );
+                if (res && res.ok) {
+                    showToast('Sent 👑 Admin Panel button (style: primary) to your Telegram!', 'success');
+                } else {
+                    showToast('Failed to send button: ' + (res?.description || 'Check connection'), 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
         }
 
         // Formatting Helpers
@@ -1520,25 +1511,22 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
 
             previewMsg.innerHTML = sampleFormatted;
 
-            // Render Preview Buttons in 2x2 Grid or 4 Lines or Keyboard
+            // Render Preview Buttons in Single Column or Grid
             const buttonsContainer = document.getElementById('previewInlineButtons');
-            const layout = document.getElementById('buttonLayout')?.value || 'grid';
-            const defaultStyle = document.getElementById('buttonColorStyle')?.value || 'success';
+            const layout = document.getElementById('buttonLayout')?.value || 'single';
+            const defaultStyle = document.getElementById('buttonColorStyle')?.value || 'primary';
 
             if (buttonsContainer) {
                 buttonsContainer.innerHTML = '';
-                if (layout === '4lines') {
+                if (layout === 'single') {
                     buttonsContainer.classList.add('layout-single');
                 } else {
                     buttonsContainer.classList.remove('layout-single');
                 }
 
                 inlineButtons.forEach(btn => {
-                    const style = btn.style || defaultStyle || 'success';
+                    const style = btn.style || defaultStyle || 'primary';
                     let label = btn.text || 'Button';
-                    if (style === 'success' && !label.includes('🟢') && !label.includes('🌿')) {
-                        label = '🟢 ' + label;
-                    }
                     const icon = btn.type === 'webapp' ? 'fa-window-maximize' : 'fa-external-link-alt';
 
                     const b = document.createElement('div');
@@ -1574,21 +1562,18 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
             }
         }
 
-        // Construct Telegram reply_markup (Ishan Bhai Bot Reference & Style Integration)
+        // Construct Telegram reply_markup (Admin Panel with style: 'primary')
         function buildReplyMarkup() {
             if (!inlineButtons || inlineButtons.length === 0) return null;
 
-            const layout = document.getElementById('buttonLayout')?.value || 'grid';
-            const defaultStyle = document.getElementById('buttonColorStyle')?.value || 'success';
+            const layout = document.getElementById('buttonLayout')?.value || 'single';
+            const defaultStyle = document.getElementById('buttonColorStyle')?.value || 'primary';
 
             const validButtons = [];
             inlineButtons.forEach(btn => {
                 if (!btn.text) return;
-                const style = btn.style || defaultStyle || 'success';
+                const style = btn.style || defaultStyle || 'primary';
                 let label = btn.text;
-                if (style === 'success' && !label.includes('🟢') && !label.includes('🌿')) {
-                    label = '🟢 ' + label;
-                }
                 const btnObj = { text: label, style: style };
                 if (btn.type === 'webapp' && btn.url) {
                     btnObj.web_app = { url: btn.url };
@@ -1600,8 +1585,7 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
 
             if (validButtons.length === 0) return null;
 
-            // 1. Reply Keyboard (4-Dot Bottom Menu)
-            if (layout === 'keyboard') {
+            if (layout === 'grid') {
                 const rows = [];
                 for (let i = 0; i < validButtons.length; i += 2) {
                     if (i + 1 < validButtons.length) {
@@ -1610,28 +1594,10 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
                         rows.push([validButtons[i]]);
                     }
                 }
-                return {
-                    keyboard: rows,
-                    resize_keyboard: true,
-                    is_persistent: true
-                };
-            }
-
-            // 2. 4 Lines (1 button per line / row)
-            if (layout === '4lines') {
+                return { inline_keyboard: rows };
+            } else {
                 return { inline_keyboard: validButtons.map(b => [b]) };
             }
-
-            // 3. 2x2 Grid (2 buttons per row - Ishan Bhai bot reference)
-            const rows = [];
-            for (let i = 0; i < validButtons.length; i += 2) {
-                if (i + 1 < validButtons.length) {
-                    rows.push([validButtons[i], validButtons[i + 1]]);
-                } else {
-                    rows.push([validButtons[i]]);
-                }
-            }
-            return { inline_keyboard: rows };
         }
 
         // Send Test Message to Admin
