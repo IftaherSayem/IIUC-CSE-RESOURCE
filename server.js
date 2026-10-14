@@ -636,19 +636,22 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, { ok: true, totalFiles: cachedTotalFiles || 1367, fallback: true });
     }
 
-    // 5. User Registration & Retrieval Endpoint
-    if (pathname === '/api/users') {
+    // 5. User Registration & Retrieval Endpoint (Persistent Disk Storage on Server)
+    if (pathname === '/api/users' || pathname === '/api/subscribers') {
         if (req.method === 'POST') {
             const body = await parseBody(req);
-            if (body && body.id) {
+            const incoming = body.user || body;
+            if (incoming && incoming.id) {
                 const subscribers = loadSubscribers();
-                const existingIndex = subscribers.findIndex(u => String(u.id) === String(body.id));
+                const existingIndex = subscribers.findIndex(u => String(u.id) === String(incoming.id));
                 const userObj = {
-                    id: String(body.id),
-                    first_name: body.first_name || '',
-                    last_name: body.last_name || '',
-                    username: body.username || '',
-                    platform: body.platform || 'Telegram WebApp',
+                    id: String(incoming.id),
+                    first_name: incoming.first_name || '',
+                    last_name: incoming.last_name || '',
+                    username: incoming.username || '',
+                    platform: incoming.platform || 'Telegram Bot',
+                    semester: incoming.semester !== undefined ? incoming.semester : (existingIndex > -1 ? subscribers[existingIndex].semester : null),
+                    semester_name: incoming.semester_name || (existingIndex > -1 ? subscribers[existingIndex].semester_name : null),
                     registeredAt: existingIndex > -1 ? subscribers[existingIndex].registeredAt : new Date().toISOString(),
                     lastSeen: new Date().toISOString()
                 };
@@ -656,10 +659,11 @@ const server = http.createServer(async (req, res) => {
                 if (existingIndex > -1) {
                     subscribers[existingIndex] = { ...subscribers[existingIndex], ...userObj };
                 } else {
-                    subscribers.unshift(userObj);
+                    subscribers.push(userObj);
                 }
 
                 saveSubscribers(subscribers);
+                console.log(`[SERVER] Saved user ${userObj.id} (${userObj.first_name}) to server storage. Total subscribers: ${subscribers.length}`);
                 return sendJson(res, 200, { success: true, count: subscribers.length, user: userObj });
             }
             return sendJson(res, 400, { success: false, error: 'User ID is required' });
@@ -667,7 +671,7 @@ const server = http.createServer(async (req, res) => {
 
         if (req.method === 'GET') {
             const subscribers = loadSubscribers();
-            return sendJson(res, 200, { success: true, count: subscribers.length, users: subscribers });
+            return sendJson(res, 200, { success: true, count: subscribers.length, users: subscribers, subscribers: subscribers });
         }
     }
 
