@@ -258,6 +258,75 @@ function getOrdinal(n) {
     return s[(v - 20) % 10] || s[v] || s[0];
 }
 
+// Robust custom date/time parser supporting AM/PM, 24h, and relative offsets
+function parseCustomDateTime(inputStr) {
+    if (!inputStr) return NaN;
+    const str = inputStr.trim();
+    const now = new Date();
+
+    // 1. Relative minutes: e.g. 30m, 45min
+    const minMatch = str.match(/^(\d+)\s*m(in)?$/i);
+    if (minMatch) {
+        return Date.now() + (parseInt(minMatch[1], 10) * 60 * 1000);
+    }
+
+    // 2. Relative hours: e.g. 2h, 3hours
+    const hrMatch = str.match(/^(\d+)\s*h(our)?s?$/i);
+    if (hrMatch) {
+        return Date.now() + (parseInt(hrMatch[1], 10) * 60 * 60 * 1000);
+    }
+
+    // 3. Normalize AM/PM in strings like '2026-10-15 14:00 PM' or '2026-10-15 2:00 PM' or 'tomorrow 10:00 AM'
+    let cleaned = str.replace(/(\b\d{1,2}:\d{2})\s*(am|pm)\b/i, (match, time, mer) => {
+        let [hh, mm] = time.split(':').map(Number);
+        const isPM = mer.toLowerCase() === 'pm';
+        const isAM = mer.toLowerCase() === 'am';
+        if (hh > 12) {
+            // Already 24h format (e.g. 14:00 PM entered by mistake)
+            return time;
+        }
+        if (isPM && hh < 12) hh += 12;
+        if (isAM && hh === 12) hh = 0;
+        return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+    });
+
+    // 4. Handle 'tomorrow 14:00' or 'today 20:00'
+    const dayMatch = cleaned.match(/^(today|tomorrow)\s+(\d{1,2}:\d{2})$/i);
+    if (dayMatch) {
+        const [hh, mm] = dayMatch[2].split(':').map(Number);
+        const target = new Date(now);
+        if (dayMatch[1].toLowerCase() === 'tomorrow') target.setDate(target.getDate() + 1);
+        target.setHours(hh, mm, 0, 0);
+        return target.getTime();
+    }
+
+    // 5. Handle just time like '14:00' or '02:00'
+    const timeOnlyMatch = cleaned.match(/^(\d{1,2}:\d{2})$/);
+    if (timeOnlyMatch) {
+        const [hh, mm] = cleaned.split(':').map(Number);
+        const target = new Date(now);
+        target.setHours(hh, mm, 0, 0);
+        if (target.getTime() <= Date.now()) {
+            target.setDate(target.getDate() + 1);
+        }
+        return target.getTime();
+    }
+
+    // 6. Handle 'YYYY-MM-DD HH:MM' with Bangladesh time (+06:00)
+    const isoMatch = cleaned.match(/^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})$/);
+    if (isoMatch) {
+        const iso = `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}T${isoMatch[4].padStart(2, '0')}:${isoMatch[5]}:00+06:00`;
+        const res = Date.parse(iso);
+        if (!isNaN(res)) return res;
+    }
+
+    // 7. General fallback Date.parse
+    const generalParsed = Date.parse(cleaned);
+    if (!isNaN(generalParsed)) return generalParsed;
+
+    return NaN;
+}
+
 // -------------------------------------------------------------
 // 3. KEYBOARD LAYOUTS
 // -------------------------------------------------------------
@@ -769,13 +838,22 @@ exports.handler = async (event) => {
 
             const text =
                 `⏰ <b>Schedule Auto-Send for All Semesters (1st – 8th) [${state.examType || 'Mid'} Term]</b>\n\n` +
-                `When should the bot automatically send the previous question papers to each student according to their specific semester?\n\n` +
-                `Tap a quick time below, OR reply in chat with a specific date & time (e.g. <code>tomorrow 10am</code>, <code>2026-10-15 14:00</code>, or <code>45m</code>):`;
+                `When should the bot automatically release and send the previous question papers?\n\n` +
+                `Tap a quick preset button below, OR reply in chat with your date & time (with <b>AM</b> or <b>PM</b>):\n` +
+                `• <code>2026-10-15 02:00 PM</code>\n` +
+                `• <code>2026-10-15 10:00 AM</code>\n` +
+                `• <code>2026-10-15 14:00</code>\n` +
+                `• <code>tomorrow 2:00 PM</code>\n` +
+                `• <code>30m</code> or <code>2h</code>`;
 
             const keyboard = {
                 inline_keyboard: [
                     [
-                        { text: '⏱️ In 15 Minutes', callback_data: 'admin_gh_sched_15m', style: 'primary' },
+                        { text: '🌅 Tomorrow 9:00 AM', callback_data: 'admin_gh_sched_tomorrow_9am', style: 'primary' },
+                        { text: '☀️ Tomorrow 2:00 PM', callback_data: 'admin_gh_sched_tomorrow_2pm', style: 'primary' }
+                    ],
+                    [
+                        { text: '🌙 Tomorrow 8:00 PM', callback_data: 'admin_gh_sched_tomorrow_8pm', style: 'primary' },
                         { text: '⏱️ In 30 Minutes', callback_data: 'admin_gh_sched_30m', style: 'primary' }
                     ],
                     [
@@ -785,10 +863,6 @@ exports.handler = async (event) => {
                     [
                         { text: '⏱️ In 6 Hours', callback_data: 'admin_gh_sched_6h', style: 'primary' },
                         { text: '⏱️ In 12 Hours', callback_data: 'admin_gh_sched_12h', style: 'primary' }
-                    ],
-                    [
-                        { text: '🌅 Tomorrow 9:00 AM', callback_data: 'admin_gh_sched_tomorrow_9am', style: 'primary' },
-                        { text: '🌙 Tomorrow 8:00 PM', callback_data: 'admin_gh_sched_tomorrow_8pm', style: 'primary' }
                     ],
                     [
                         { text: '🔙 Back', callback_data: `admin_gh_exam_${state.examType || 'Mid'}`, style: 'primary' },
@@ -834,6 +908,13 @@ exports.handler = async (event) => {
                 target.setHours(9, 0, 0, 0);
                 delayMs = target.getTime() - now.getTime();
                 label = 'Tomorrow at 9:00 AM';
+            }
+            else if (delayKey === 'tomorrow_2pm') {
+                const target = new Date(now);
+                target.setDate(target.getDate() + 1);
+                target.setHours(14, 0, 0, 0);
+                delayMs = target.getTime() - now.getTime();
+                label = 'Tomorrow at 2:00 PM';
             }
             else if (delayKey === 'tomorrow_8pm') {
                 const target = new Date(now);
@@ -1176,26 +1257,20 @@ exports.handler = async (event) => {
                 return { statusCode: 200, headers, body: '{"ok":true}' };
             }
 
-            let parsedTime = NaN;
-            if (/^\d+\s*m(in)?/i.test(text)) {
-                const mins = parseInt(text, 10);
-                parsedTime = Date.now() + (mins * 60 * 1000);
-            } else if (/^\d+\s*h(our)?/i.test(text)) {
-                const hours = parseInt(text, 10);
-                parsedTime = Date.now() + (hours * 60 * 60 * 1000);
-            } else {
-                parsedTime = Date.parse(text);
-            }
+            const parsedTime = parseCustomDateTime(text);
 
             if (isNaN(parsedTime) || parsedTime <= Date.now()) {
                 await callTelegram('sendMessage', {
                     chat_id: userId,
                     text:
                         `⚠️ <b>Could not recognize that future date/time.</b>\n\n` +
-                        `Please enter a future time like:\n` +
-                        `• <code>30m</code> (for 30 minutes)\n` +
-                        `• <code>2h</code> (for 2 hours)\n` +
+                        `Please enter a future time with AM or PM like:\n` +
+                        `• <code>2026-10-15 02:00 PM</code>\n` +
+                        `• <code>2026-10-15 10:00 AM</code>\n` +
                         `• <code>2026-10-15 14:00</code>\n` +
+                        `• <code>tomorrow 2:00 PM</code>\n` +
+                        `• <code>today 8:00 PM</code>\n` +
+                        `• <code>30m</code> or <code>2h</code>\n` +
                         `• <i>Or tap one of the quick schedule buttons above, or send /cancel.</i>`,
                     parse_mode: 'HTML'
                 });
