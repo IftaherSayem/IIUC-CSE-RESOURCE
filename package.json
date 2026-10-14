@@ -1,0 +1,18 @@
+{
+  "name": "iiuc-cse-resource",
+  "version": "1.1.0",
+  "description": "Academic Resource Hub for IIUC CSE with Server & Telegram Integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "telegram",
+    "iiuc",
+    "cse",
+    "resources"
+  ],
+  "author": "Iftaher Sayem",
+  "license": "MIT"
+}

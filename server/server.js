@@ -43,63 +43,7 @@ if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// ============================================================================
-// 🔐 SYSTEM ADMIN PASSWORD CONFIGURATION
-// Precedence: 1. Environment Variable (Highest) -> 2. config.json -> 3. '6623'
-// ============================================================================
-function getActiveAdminPassword() {
-    // 1. Environment Variable (Always highest priority)
-    const envPass = process.env.ADMIN_PASSWORD || process.env.admin_password || process.env.ADMIN_PASS;
-    if (envPass && String(envPass).trim()) {
-        return String(envPass).trim().replace(/^['"]|['"]$/g, '');
-    }
-
-    // 2. Saved Config File (if set dynamically)
-    try {
-        if (fs.existsSync(CONFIG_FILE)) {
-            const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-            if (cfg.adminPassword && String(cfg.adminPassword).trim()) {
-                return String(cfg.adminPassword).trim().replace(/^['"]|['"]$/g, '');
-            }
-        }
-    } catch (e) {
-        console.error('[SERVER] Config read error:', e.message);
-    }
-
-    // 3. Fallback default
-    return '6623';
-}
-
-function saveServerConfig(cfg) {
-    try {
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
-    } catch (e) {
-        console.error('[SERVER] Config save error:', e.message);
-    }
-}
-
-// Session Token Manager for Admin Panel
-const activeSessions = new Map(); // token -> { expiresAt }
-
-function generateSession() {
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours validity
-    activeSessions.set(token, { expiresAt });
-    return { token, expiresAt };
-}
-
-function isValidSession(token) {
-    if (!token) return false;
-    const session = activeSessions.get(token);
-    if (!session) return false;
-    if (Date.now() > session.expiresAt) {
-        activeSessions.delete(token);
-        return false;
-    }
-    return true;
-}
-
-// In-memory cache for GitHub API & stats
+// In-memory cache for GitHub API responses
 const githubCache = {};
 let cachedTotalFiles = null;
 let lastTotalFilesFetch = 0;
@@ -138,7 +82,7 @@ function sendJson(res, statusCode, data) {
     res.end(JSON.stringify(data));
 }
 
-// Helper: parse JSON request body
+// Helper: parse request body
 function parseBody(req) {
     return new Promise((resolve, reject) => {
         let body = '';
@@ -156,7 +100,7 @@ function parseBody(req) {
     });
 }
 
-// MIME types for static files if served alongside
+// MIME types for static files
 const MIME_TYPES = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -170,7 +114,7 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer(async (req, res) => {
-    // 1. Handle CORS preflight for all origins and hosts (no restrictions)
+    // Handle CORS preflight for all hosts and origins
     if (req.method === 'OPTIONS') {
         res.writeHead(204, {
             'Access-Control-Allow-Origin': '*',
@@ -188,24 +132,19 @@ const server = http.createServer(async (req, res) => {
 
     console.log(`[SERVER] ${req.method} ${pathname}`);
 
-    // ========================================================================
-    // API ROUTE 1: Health & Uptime Status
-    // ========================================================================
+    // 1. Health check endpoint
     if (pathname === '/health' || pathname === '/api/status') {
         return sendJson(res, 200, {
             status: 'ok',
             mode: 'server',
             uptime: Math.round(process.uptime()),
             timestamp: Date.now(),
-            service: 'IIUC CSE Resource Hub Backend API',
-            activePort: PORT,
-            totalSubscribers: loadSubscribers().length
+            service: 'IIUC CSE Resource Hub Backend',
+            activePort: PORT
         });
     }
 
-    // ========================================================================
-    // API ROUTE 2: Telegram Send File (Server Mode)
-    // ========================================================================
+    // 2. Telegram Send File Endpoint (Server Mode)
     if (pathname === '/api/telegram/send' && req.method === 'POST') {
         try {
             const body = await parseBody(req);
@@ -257,9 +196,7 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    // ========================================================================
-    // API ROUTE 2.2: Telegram Send Message with Reply Markup (Server Mode)
-    // ========================================================================
+    // 2.2 Telegram Send Message with Reply Markup (Server Mode)
     if (pathname === '/api/telegram/send-message' && req.method === 'POST') {
         try {
             const body = await parseBody(req);
@@ -322,9 +259,7 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    // ========================================================================
-    // API ROUTE 2.5: Telegram Set Chat Menu Button Endpoint (Server Mode)
-    // ========================================================================
+    // 2.5 Telegram Set Chat Menu Button Endpoint (Server Mode)
     if (pathname === '/api/telegram/set-menu-button' && req.method === 'POST') {
         try {
             const body = await parseBody(req);
@@ -351,9 +286,7 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    // ========================================================================
-    // API ROUTE 3: Download Stream Proxy
-    // ========================================================================
+    // 3. Download Proxy Endpoint (Server Streams the File)
     if (pathname === '/api/download' && req.method === 'GET') {
         const fileUrl = query.url;
         const fileName = query.filename || path.basename(fileUrl) || 'resource-file';
@@ -384,9 +317,7 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    // ========================================================================
-    // API ROUTE 4: GitHub API Proxy with Cache
-    // ========================================================================
+    // 4. GitHub API Proxy with In-Memory Caching
     if (pathname === '/api/github' && req.method === 'GET') {
         const endpoint = query.endpoint;
         if (!endpoint) {
@@ -416,12 +347,9 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    // ========================================================================
-    // API ROUTE 4.1: Total Live Resources Count (Blobs only, excludes folders)
-    // ========================================================================
+    // 4.1. Total Live Files Count (counting only files / blobs, not folders)
     if (pathname === '/api/total-resources' && req.method === 'GET') {
         const now = Date.now();
-        // Return cached count if within 5 minutes
         if (typeof cachedTotalFiles === 'number' && (now - lastTotalFilesFetch < 5 * 60 * 1000)) {
             return sendJson(res, 200, { ok: true, totalFiles: cachedTotalFiles, cached: true });
         }
@@ -447,9 +375,7 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, { ok: true, totalFiles: cachedTotalFiles || 1367, fallback: true });
     }
 
-    // ========================================================================
-    // API ROUTE 5: User Registration & Retrieval Endpoint
-    // ========================================================================
+    // 5. User Registration & Retrieval Endpoint
     if (pathname === '/api/users') {
         if (req.method === 'POST') {
             const body = await parseBody(req);
@@ -484,135 +410,8 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    // ========================================================================
-    // API ROUTE 6: Admin Authentication & Management Endpoints
-    // ========================================================================
-    if (pathname === '/api/admin/login' && req.method === 'POST') {
-        try {
-            const body = await parseBody(req);
-            const { password, telegramUserId } = body;
-
-            // Verified via Telegram Admin ID
-            if (telegramUserId && String(telegramUserId) === String(ADMIN_CHAT_ID)) {
-                const session = generateSession();
-                return sendJson(res, 200, {
-                    ok: true,
-                    token: session.token,
-                    expiresAt: session.expiresAt,
-                    message: 'Authenticated via Admin Telegram ID'
-                });
-            }
-
-            // Verified via Server Configured Password (or environment password)
-            const activePass = getActiveAdminPassword();
-            const inputPass = String(password || '').trim().replace(/^['"]|['"]$/g, '');
-            const envPass = (process.env.ADMIN_PASSWORD || process.env.admin_password || '').trim().replace(/^['"]|['"]$/g, '');
-
-            if (inputPass && (inputPass === activePass || (envPass && inputPass === envPass))) {
-                const session = generateSession();
-                return sendJson(res, 200, {
-                    ok: true,
-                    token: session.token,
-                    expiresAt: session.expiresAt,
-                    message: 'Authenticated via Server Admin Password'
-                });
-            }
-
-            return sendJson(res, 401, {
-                ok: false,
-                error: 'Invalid admin password. Please try again.'
-            });
-        } catch (err) {
-            return sendJson(res, 500, { ok: false, error: err.message });
-        }
-    }
-
-    if (pathname === '/api/admin/verify' && req.method === 'POST') {
-        const body = await parseBody(req);
-        const token = body.token || (req.headers.authorization && req.headers.authorization.replace('Bearer ', ''));
-        const valid = isValidSession(token);
-        return sendJson(res, 200, { ok: true, valid });
-    }
-
-    if (pathname === '/api/admin/logout' && req.method === 'POST') {
-        const body = await parseBody(req);
-        const token = body.token;
-        if (token) activeSessions.delete(token);
-        return sendJson(res, 200, { ok: true, message: 'Logged out successfully' });
-    }
-
-    if (pathname === '/api/admin/change-password' && req.method === 'POST') {
-        try {
-            const body = await parseBody(req);
-            const { token, currentPassword, newPassword } = body;
-
-            if (!isValidSession(token)) {
-                return sendJson(res, 401, { ok: false, error: 'Unauthorized session' });
-            }
-
-            if (String(currentPassword).trim() !== String(ADMIN_PASSWORD).trim()) {
-                return sendJson(res, 400, { ok: false, error: 'Current password is incorrect' });
-            }
-
-            if (!newPassword || String(newPassword).trim().length < 4) {
-                return sendJson(res, 400, { ok: false, error: 'New password must be at least 4 characters' });
-            }
-
-            ADMIN_PASSWORD = String(newPassword).trim();
-            saveServerConfig({ adminPassword: ADMIN_PASSWORD, updatedAt: new Date().toISOString() });
-            return sendJson(res, 200, { ok: true, message: 'Admin password updated successfully in server!' });
-        } catch (err) {
-            return sendJson(res, 500, { ok: false, error: err.message });
-        }
-    }
-
-    // ========================================================================
-    // ROOT LANDING & STATIC FALLBACK: Server Info Page
-    // ========================================================================
-    let targetPath = pathname;
-    if (targetPath === '/acc/ad' || targetPath === '/acc/ad/') {
-        targetPath = '/acc/ad/index.html';
-    } else if (targetPath === '/') {
-        // If static index.html doesn't exist in server dir, return a beautiful status page
-        const localIndexPath = path.join(__dirname, 'index.html');
-        if (!fs.existsSync(localIndexPath)) {
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            return res.end(`
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>IIUC CSE Resource Hub - Backend Server</title>
-                    <style>
-                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f8fafc; padding: 40px 20px; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; box-sizing: border-box; }
-                        .card { max-width: 580px; width: 100%; background: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-                        .status { display: inline-flex; align-items: center; gap: 8px; background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 16px; }
-                        .dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; }
-                        h1 { margin: 0 0 8px; font-size: 1.6rem; color: #ffffff; }
-                        p { margin: 0 0 20px; color: #94a3b8; font-size: 0.95rem; line-height: 1.5; }
-                        .endpoint { background: #0f172a; padding: 10px 14px; border-radius: 8px; font-family: monospace; font-size: 0.85rem; margin-bottom: 8px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
-                        .endpoint .badge { background: #3b82f6; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
-                    </style>
-                </head>
-                <body>
-                    <div class="card">
-                        <div class="status"><span class="dot"></span> SERVER ONLINE (Server Mode)</div>
-                        <h1>IIUC CSE Resource Backend</h1>
-                        <p>This is the standalone Node.js API backend for the Academic Resource Hub.</p>
-                        <div class="endpoint"><span>GET /health</span><span class="badge">Health Check</span></div>
-                        <div class="endpoint"><span>GET /api/total-resources</span><span class="badge">Live File Count</span></div>
-                        <div class="endpoint"><span>GET /api/github</span><span class="badge">GitHub Proxy</span></div>
-                        <div class="endpoint"><span>POST /api/telegram/send</span><span class="badge">Telegram Bot</span></div>
-                        <div class="endpoint"><span>GET /api/download</span><span class="badge">File Stream</span></div>
-                        <div class="endpoint"><span>POST /api/admin/login</span><span class="badge">Admin Auth</span></div>
-                    </div>
-                </body>
-                </html>
-            `);
-        }
-        targetPath = '/index.html';
-    }
+    // 6. Static File Server for frontend Mini App
+    let targetPath = (pathname === '/' || !pathname) ? '/index.html' : pathname;
 
     let filePath = path.join(__dirname, targetPath);
     fs.stat(filePath, (err, stats) => {
@@ -633,11 +432,442 @@ const server = http.createServer(async (req, res) => {
                 return fs.createReadStream(indexPath).pipe(res);
             }
             // Not found
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Endpoint not found', path: pathname }));
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('404 Not Found');
         }
     });
 });
+
+// ========================================================================
+// 8. NATIVE TELEGRAM BOT ENGINE & INTERACTIVE ADMIN BROADCAST PANEL
+// ========================================================================
+const ADMIN_ID = String(ADMIN_CHAT_ID);
+const adminBroadcastState = new Map(); // adminId -> { step, msg }
+
+// Helper for calling Telegram API directly
+async function callTelegramApi(method, payload = {}) {
+    const activeToken = BOT_TOKEN;
+    const apiUrl = `https://api.telegram.org/bot${activeToken}/${method}`;
+    const validStyles = ['primary', 'success', 'danger'];
+
+    if (payload && payload.reply_markup) {
+        const sanitizeButtons = (rows) => {
+            if (!Array.isArray(rows)) return rows;
+            return rows.map(row => {
+                if (!Array.isArray(row)) return row;
+                return row.map(btn => {
+                    if (btn && btn.style && !validStyles.includes(btn.style)) {
+                        delete btn.style;
+                    }
+                    return btn;
+                });
+            });
+        };
+        if (Array.isArray(payload.reply_markup.inline_keyboard)) {
+            payload.reply_markup.inline_keyboard = sanitizeButtons(payload.reply_markup.inline_keyboard);
+        }
+        if (Array.isArray(payload.reply_markup.keyboard)) {
+            payload.reply_markup.keyboard = sanitizeButtons(payload.reply_markup.keyboard);
+        }
+    }
+
+    try {
+        const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        return await res.json();
+    } catch (err) {
+        console.error(`[TELEGRAM] ${method} error:`, err.message);
+        return { ok: false, error: err.message };
+    }
+}
+
+// Register user into subscribers database
+function trackUser(from) {
+    if (!from || !from.id) return;
+    const subscribers = loadSubscribers();
+    const idStr = String(from.id);
+    const existingIndex = subscribers.findIndex(u => String(u.id) === idStr);
+
+    const userObj = {
+        id: idStr,
+        first_name: from.first_name || '',
+        last_name: from.last_name || '',
+        username: from.username || '',
+        platform: 'Telegram Bot',
+        registeredAt: existingIndex > -1 ? subscribers[existingIndex].registeredAt : new Date().toISOString(),
+        lastSeen: new Date().toISOString()
+    };
+
+    if (existingIndex > -1) {
+        subscribers[existingIndex] = userObj;
+    } else {
+        subscribers.push(userObj);
+    }
+    saveSubscribers(subscribers);
+}
+
+// Generate Admin Panel Text and Inline Buttons (100% inside Telegram)
+function getAdminPanelPayload() {
+    const subscribers = loadSubscribers();
+    const text = 
+        `👑 <b>Admin Control Panel</b>\n\n` +
+        `👥 Registered Subscribers: <b>${subscribers.length}</b>\n` +
+        `🤖 Bot: <b>@iiuccseresourcebot</b>\n` +
+        `🌐 Portal: <b>https://cseresourceofiiuc.netlify.app</b>\n\n` +
+        `Select an action below to manage announcements:`;
+
+    const reply_markup = {
+        inline_keyboard: [
+            [
+                { text: '📢 Broadcast Announcement', callback_data: 'admin_broadcast_start', style: 'primary' }
+            ],
+            [
+                { text: `👥 Subscribers (${subscribers.length})`, callback_data: 'admin_subscribers', style: 'primary' },
+                { text: '📊 System Status', callback_data: 'admin_status', style: 'primary' }
+            ],
+            [
+                { text: '🔄 Refresh Panel', callback_data: 'admin_menu', style: 'primary' },
+                { text: '❌ Close', callback_data: 'admin_close', style: 'danger' }
+            ]
+        ]
+    };
+
+    return { text, reply_markup };
+}
+
+// Handle Incoming Telegram Updates (Messages & Button Callbacks)
+async function processTelegramUpdate(update) {
+    // 1. Process Incoming Messages
+    if (update.message) {
+        const msg = update.message;
+        const from = msg.from;
+        if (!from) return;
+        trackUser(from);
+
+        const userId = String(from.id);
+        const isAdmin = (userId === ADMIN_ID);
+        const text = (msg.text || '').trim();
+
+        // Check if Admin is in waiting_for_message broadcast step
+        if (isAdmin && adminBroadcastState.has(userId) && adminBroadcastState.get(userId).step === 'waiting_for_message') {
+            if (text === '/cancel' || text.toLowerCase() === 'cancel') {
+                adminBroadcastState.delete(userId);
+                const panel = getAdminPanelPayload();
+                await callTelegramApi('sendMessage', {
+                    chat_id: userId,
+                    text: '❌ Broadcast cancelled.\n\n' + panel.text,
+                    parse_mode: 'HTML',
+                    reply_markup: panel.reply_markup
+                });
+                return;
+            }
+
+            // Save pending broadcast message
+            adminBroadcastState.set(userId, { step: 'preview', msg: msg });
+            const subscribers = loadSubscribers();
+
+            // Preview copied message back to admin with confirm / cancel inline buttons
+            await callTelegramApi('copyMessage', {
+                chat_id: userId,
+                from_chat_id: msg.chat.id,
+                message_id: msg.message_id,
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: `✅ Send Now (to ~${subscribers.length} users)`, callback_data: 'admin_broadcast_confirm', style: 'primary' },
+                            { text: '❌ Cancel', callback_data: 'admin_broadcast_cancel', style: 'danger' }
+                        ]
+                    ]
+                }
+            });
+            return;
+        }
+
+        // Admin command to open inline admin panel
+        if (isAdmin && (text === '/admin' || text === '👑 Admin Panel' || text.toLowerCase() === 'admin')) {
+            const panel = getAdminPanelPayload();
+            await callTelegramApi('sendMessage', {
+                chat_id: userId,
+                text: panel.text,
+                parse_mode: 'HTML',
+                reply_markup: panel.reply_markup
+            });
+            return;
+        }
+
+        // /start command
+        if (text === '/start') {
+            if (isAdmin) {
+                await callTelegramApi('sendMessage', {
+                    chat_id: userId,
+                    text: `👋 <b>Welcome Admin!</b>\n\nTap the button below or type /admin to manage broadcasts directly in Telegram:`,
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        keyboard: [
+                            [{ text: '👑 Admin Panel', style: 'primary' }]
+                        ],
+                        resize_keyboard: true,
+                        is_persistent: true
+                    }
+                });
+                const panel = getAdminPanelPayload();
+                await callTelegramApi('sendMessage', {
+                    chat_id: userId,
+                    text: panel.text,
+                    parse_mode: 'HTML',
+                    reply_markup: panel.reply_markup
+                });
+            } else {
+                await callTelegramApi('sendMessage', {
+                    chat_id: userId,
+                    text: `👋 <b>Welcome to IIUC CSE Resource Hub Bot!</b>\n\nBrowse question banks, lecture slides, and notes directly on our web app:\n🔗 https://cseresourceofiiuc.netlify.app`,
+                    parse_mode: 'HTML'
+                });
+            }
+            return;
+        }
+    }
+
+    // 2. Process Callback Queries (Inline Buttons)
+    if (update.callback_query) {
+        const query = update.callback_query;
+        const from = query.from;
+        if (!from) return;
+        trackUser(from);
+
+        const userId = String(from.id);
+        const data = query.data || '';
+        const msgId = query.message ? query.message.message_id : null;
+
+        await callTelegramApi('answerCallbackQuery', { callback_query_id: query.id });
+
+        if (userId !== ADMIN_ID) {
+            await callTelegramApi('answerCallbackQuery', { callback_query_id: query.id, text: '⛔ Admin only', show_alert: true });
+            return;
+        }
+
+        if (data === 'admin_menu') {
+            adminBroadcastState.delete(userId);
+            const panel = getAdminPanelPayload();
+            if (msgId) {
+                await callTelegramApi('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text: panel.text,
+                    parse_mode: 'HTML',
+                    reply_markup: panel.reply_markup
+                });
+            } else {
+                await callTelegramApi('sendMessage', {
+                    chat_id: userId,
+                    text: panel.text,
+                    parse_mode: 'HTML',
+                    reply_markup: panel.reply_markup
+                });
+            }
+            return;
+        }
+
+        if (data === 'admin_broadcast_start') {
+            adminBroadcastState.set(userId, { step: 'waiting_for_message' });
+            const promptText = 
+                `📢 <b>Broadcast Announcement Mode</b>\n\n` +
+                `Please send or forward the message you want to broadcast now.\n` +
+                `Supports text with formatting, photos with captions, and documents.\n\n` +
+                `<i>Tap Cancel below to abort.</i>`;
+
+            if (msgId) {
+                await callTelegramApi('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text: promptText,
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '❌ Cancel Broadcast', callback_data: 'admin_broadcast_cancel', style: 'danger' }]
+                        ]
+                    }
+                });
+            }
+            return;
+        }
+
+        if (data === 'admin_broadcast_cancel') {
+            adminBroadcastState.delete(userId);
+            const panel = getAdminPanelPayload();
+            if (msgId) {
+                await callTelegramApi('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text: '❌ Broadcast cancelled.\n\n' + panel.text,
+                    parse_mode: 'HTML',
+                    reply_markup: panel.reply_markup
+                });
+            }
+            return;
+        }
+
+        if (data === 'admin_broadcast_confirm') {
+            const state = adminBroadcastState.get(userId);
+            if (!state || state.step !== 'preview' || !state.msg) {
+                await callTelegramApi('sendMessage', { chat_id: userId, text: '⚠️ No broadcast pending or expired.' });
+                return;
+            }
+
+            adminBroadcastState.delete(userId);
+            const pendingMsg = state.msg;
+            const subscribers = loadSubscribers();
+
+            if (subscribers.length === 0) {
+                await callTelegramApi('sendMessage', { chat_id: userId, text: '⚠️ No subscribers found in database.' });
+                return;
+            }
+
+            if (msgId) {
+                await callTelegramApi('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text: `⏳ <b>Broadcasting in progress...</b>\nDelivering to ${subscribers.length} subscribers, please wait...`,
+                    parse_mode: 'HTML'
+                });
+            }
+
+            const startTime = Date.now();
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const sub of subscribers) {
+                try {
+                    const res = await callTelegramApi('copyMessage', {
+                        chat_id: sub.id,
+                        from_chat_id: pendingMsg.chat.id,
+                        message_id: pendingMsg.message_id
+                    });
+                    if (res && res.ok) successCount++;
+                    else failCount++;
+                } catch (e) {
+                    failCount++;
+                }
+                // Avoid Telegram rate limits
+                await new Promise(r => setTimeout(r, 40));
+            }
+
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            const reportText = 
+                `✅ <b>Broadcast Completed!</b>\n\n` +
+                `• Successfully Sent: <b>${successCount}</b>\n` +
+                `• Failed / Blocked: <b>${failCount}</b>\n` +
+                `• Total Queue: <b>${subscribers.length}</b>\n` +
+                `• Duration: <b>${elapsed}s</b>`;
+
+            await callTelegramApi('sendMessage', {
+                chat_id: userId,
+                text: reportText,
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '👑 Back to Admin Panel', callback_data: 'admin_menu', style: 'primary' }]
+                    ]
+                }
+            });
+            return;
+        }
+
+        if (data === 'admin_subscribers') {
+            const subscribers = loadSubscribers();
+            let subList = subscribers.slice(-10).reverse().map((u, i) => 
+                `${i + 1}. <b>${u.first_name || 'User'}</b> (@${u.username || 'n/a'}) - <code>${u.id}</code>`
+            ).join('\n');
+
+            const text = 
+                `👥 <b>Subscribers Overview</b>\n\n` +
+                `Total Registered: <b>${subscribers.length}</b>\n\n` +
+                `Recent Subscribers:\n${subList || '<i>None yet</i>'}`;
+
+            if (msgId) {
+                await callTelegramApi('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text,
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '🔙 Back to Admin Panel', callback_data: 'admin_menu', style: 'primary' }]
+                        ]
+                    }
+                });
+            }
+            return;
+        }
+
+        if (data === 'admin_status') {
+            const subscribers = loadSubscribers();
+            const uptime = Math.round(process.uptime());
+            const text = 
+                `📊 <b>System Status</b>\n\n` +
+                `• Bot: <b>@iiuccseresourcebot</b> (Active 🟢)\n` +
+                `• Server: <b>Node.js (Port ${PORT})</b>\n` +
+                `• Uptime: <b>${Math.floor(uptime / 60)}m ${uptime % 60}s</b>\n` +
+                `• Registered Subscribers: <b>${subscribers.length}</b>\n` +
+                `• Live Portal: <b>https://cseresourceofiiuc.netlify.app</b>`;
+
+            if (msgId) {
+                await callTelegramApi('editMessageText', {
+                    chat_id: userId,
+                    message_id: msgId,
+                    text,
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '🔙 Back to Admin Panel', callback_data: 'admin_menu', style: 'primary' }]
+                        ]
+                    }
+                });
+            }
+            return;
+        }
+
+        if (data === 'admin_close') {
+            if (msgId) {
+                await callTelegramApi('deleteMessage', {
+                    chat_id: userId,
+                    message_id: msgId
+                });
+            }
+            return;
+        }
+    }
+}
+
+// Telegram Bot Long Polling Loop
+let botPollOffset = 0;
+let isBotPollingActive = false;
+
+async function runTelegramBotPolling() {
+    if (isBotPollingActive) return;
+    isBotPollingActive = true;
+    console.log('[TELEGRAM] Native Bot Engine & Admin Panel Polling Started');
+
+    while (isBotPollingActive) {
+        try {
+            const activeToken = BOT_TOKEN;
+            const res = await fetch(`https://api.telegram.org/bot${activeToken}/getUpdates?offset=${botPollOffset}&timeout=25`);
+            const data = await res.json();
+
+            if (data.ok && Array.isArray(data.result)) {
+                for (const update of data.result) {
+                    botPollOffset = update.update_id + 1;
+                    await processTelegramUpdate(update);
+                }
+            }
+        } catch (err) {
+            await new Promise(r => setTimeout(r, 4000));
+        }
+    }
+}
 
 server.listen(PORT, HOST, () => {
     console.log(`===============================================`);
@@ -645,6 +875,11 @@ server.listen(PORT, HOST, () => {
     console.log(`📡 Host: ${HOST} (Listening on all interfaces)`);
     console.log(`📡 Port: ${PORT}`);
     console.log(`🏥 Health Check: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}/health`);
-    console.log(`🔑 Admin Password: ${getActiveAdminPassword()}`);
+    console.log(`🤖 Telegram Bot Admin Panel: @iiuccseresourcebot (Chat ID: ${ADMIN_CHAT_ID})`);
+    console.log(`🌐 Live Portal: https://cseresourceofiiuc.netlify.app`);
     console.log(`===============================================`);
+
+    // Start Native Telegram Bot Long-Polling
+    runTelegramBotPolling().catch(err => console.error('[TELEGRAM] Polling error:', err));
 });
+

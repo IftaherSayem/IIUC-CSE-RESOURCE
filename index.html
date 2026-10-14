@@ -2774,14 +2774,6 @@
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            // Secret admin route check: e.g. weblink/#acc/ad or weblink/?acc/ad
-            const currentHash = window.location.hash.toLowerCase();
-            const currentSearch = window.location.search.toLowerCase();
-            if (currentHash === '#acc/ad' || currentHash === '#/acc/ad' || currentSearch.includes('acc/ad')) {
-                window.location.href = 'acc/ad';
-                return;
-            }
-
             debugLog('Application initialized');
             initTheme();
             initTelegram();
