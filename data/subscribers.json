@@ -6,7 +6,7 @@
     "username": "e2re01",
     "platform": "Telegram Bot",
     "registeredAt": "2026-10-14T03:56:27.015Z",
-    "lastSeen": "2026-10-14T04:07:02.183Z"
+    "lastSeen": "2026-10-14T07:48:53.339Z"
   },
   {
     "id": "7496884723",
@@ -263,14 +263,14 @@
   },
   {
     "id": "6268903196",
-    "first_name": "Student",
+    "first_name": ".",
     "last_name": "",
     "username": "",
     "platform": "Telegram Bot",
-    "semester": null,
-    "semester_name": null,
+    "semester": 7,
+    "semester_name": "7th Semester",
     "registeredAt": "2026-10-14T07:05:25.528Z",
-    "lastSeen": "2026-10-14T07:05:25.528Z"
+    "lastSeen": "2026-10-14T07:49:27.902Z"
   },
   {
     "id": "8457139480",
@@ -326,5 +326,16 @@
     "semester_name": null,
     "registeredAt": "2026-10-14T07:05:25.528Z",
     "lastSeen": "2026-10-14T07:05:25.528Z"
+  },
+  {
+    "id": "6089812211",
+    "first_name": "Md",
+    "last_name": "Sayem",
+    "username": "",
+    "platform": "Telegram Bot",
+    "semester": 6,
+    "semester_name": "6th Semester",
+    "registeredAt": "2026-10-14T07:51:04.343Z",
+    "lastSeen": "2026-10-14T08:17:19.253Z"
   }
 ]

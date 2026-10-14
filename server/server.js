@@ -646,13 +646,14 @@ const server = http.createServer(async (req, res) => {
                 const existingIndex = subscribers.findIndex(u => String(u.id) === String(incoming.id));
                 const userObj = {
                     id: String(incoming.id),
-                    first_name: incoming.first_name || '',
-                    last_name: incoming.last_name || '',
-                    username: incoming.username || '',
-                    platform: incoming.platform || 'Telegram Bot',
-                    semester: incoming.semester !== undefined ? incoming.semester : (existingIndex > -1 ? subscribers[existingIndex].semester : null),
+                    first_name: incoming.first_name || (existingIndex > -1 ? subscribers[existingIndex].first_name : ''),
+                    last_name: incoming.last_name || (existingIndex > -1 ? subscribers[existingIndex].last_name : ''),
+                    username: incoming.username || (existingIndex > -1 ? subscribers[existingIndex].username : ''),
+                    platform: incoming.platform || (existingIndex > -1 ? subscribers[existingIndex].platform : 'Telegram Bot'),
+                    semester: (incoming.semester !== undefined && incoming.semester !== null) ? incoming.semester : (existingIndex > -1 ? subscribers[existingIndex].semester : null),
                     semester_name: incoming.semester_name || (existingIndex > -1 ? subscribers[existingIndex].semester_name : null),
-                    registeredAt: existingIndex > -1 ? subscribers[existingIndex].registeredAt : new Date().toISOString(),
+                    semesterUpdatedAt: incoming.semesterUpdatedAt || (existingIndex > -1 ? subscribers[existingIndex].semesterUpdatedAt : (incoming.semester ? new Date().toISOString() : null)),
+                    registeredAt: existingIndex > -1 ? subscribers[existingIndex].registeredAt : (incoming.registeredAt || new Date().toISOString()),
                     lastSeen: new Date().toISOString()
                 };
 
@@ -663,7 +664,7 @@ const server = http.createServer(async (req, res) => {
                 }
 
                 saveSubscribers(subscribers);
-                console.log(`[SERVER] Saved user ${userObj.id} (${userObj.first_name}) to server storage. Total subscribers: ${subscribers.length}`);
+                console.log(`[SERVER] Saved user ${userObj.id} (${userObj.first_name}) - Semester: ${userObj.semester_name || userObj.semester || 'None'} to server storage. Total subscribers: ${subscribers.length}`);
                 return sendJson(res, 200, { success: true, count: subscribers.length, user: userObj });
             }
             return sendJson(res, 400, { success: false, error: 'User ID is required' });
@@ -855,12 +856,13 @@ function trackUser(from) {
 
     const userObj = {
         id: idStr,
-        first_name: from.first_name || '',
-        last_name: from.last_name || '',
-        username: from.username || '',
+        first_name: from.first_name || (existing ? existing.first_name : ''),
+        last_name: from.last_name || (existing ? existing.last_name : ''),
+        username: from.username || (existing ? existing.username : ''),
         platform: 'Telegram Bot',
         semester: existing ? existing.semester : null,
         semester_name: existing ? existing.semester_name : null,
+        semesterUpdatedAt: existing ? existing.semesterUpdatedAt : null,
         registeredAt: existing ? existing.registeredAt : new Date().toISOString(),
         lastSeen: new Date().toISOString()
     };
@@ -1003,12 +1005,33 @@ async function processTelegramUpdate(update) {
 
             const subs = loadSubscribers();
             const idx = subs.findIndex(s => String(s.id) === userId);
+            let userObj;
             if (idx > -1) {
                 subs[idx].semester = semNum;
                 subs[idx].semester_name = semName;
+                if (from.first_name) subs[idx].first_name = from.first_name;
+                if (from.last_name) subs[idx].last_name = from.last_name;
+                if (from.username) subs[idx].username = from.username;
                 subs[idx].semesterUpdatedAt = new Date().toISOString();
-                saveSubscribers(subs);
+                subs[idx].lastSeen = new Date().toISOString();
+                userObj = subs[idx];
+            } else {
+                userObj = {
+                    id: userId,
+                    first_name: from.first_name || '',
+                    last_name: from.last_name || '',
+                    username: from.username || '',
+                    platform: 'Telegram Bot',
+                    semester: semNum,
+                    semester_name: semName,
+                    registeredAt: new Date().toISOString(),
+                    semesterUpdatedAt: new Date().toISOString(),
+                    lastSeen: new Date().toISOString()
+                };
+                subs.push(userObj);
             }
+            saveSubscribers(subs);
+            console.log(`[SERVER] User ${userId} (${userObj.first_name}) registered for ${semName}. Total saved: ${subs.length}`);
 
             const successText =
                 `🎓 <b>Semester Registered Successfully!</b>\n` +

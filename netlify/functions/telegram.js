@@ -181,27 +181,42 @@ const DEDICATED_SERVER_URL = 'https://c5mg9w.bot-keep.xyz';
 
 // Automatically sync every new subscriber and profile update to dedicated persistent server
 function syncUserToDedicatedServer(userObj) {
-    if (!userObj || !userObj.id) return;
-    try {
-        const postData = JSON.stringify(userObj);
-        const urlObj = new URL(`${DEDICATED_SERVER_URL}/api/users`);
-        const req = https.request({
-            hostname: urlObj.hostname,
-            path: urlObj.pathname,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
-            },
-            timeout: 4000
-        }, (res) => {
-            res.resume();
-        });
-        req.on('error', () => {});
-        req.on('timeout', () => req.destroy());
-        req.write(postData);
-        req.end();
-    } catch (e) {}
+    if (!userObj || !userObj.id) return Promise.resolve(false);
+    return new Promise((resolve) => {
+        try {
+            const postData = JSON.stringify(userObj);
+            const urlObj = new URL(`${DEDICATED_SERVER_URL}/api/users`);
+            const req = https.request({
+                hostname: urlObj.hostname,
+                path: urlObj.pathname,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(postData)
+                },
+                timeout: 5000
+            }, (res) => {
+                let data = '';
+                res.on('data', c => data += c);
+                res.on('end', () => {
+                    console.log(`[SYNC] User ${userObj.id} semester ${userObj.semester} synced to dedicated server`);
+                    resolve(true);
+                });
+            });
+            req.on('error', (err) => {
+                console.warn(`[SYNC] Error syncing user ${userObj.id} to dedicated server:`, err.message);
+                resolve(false);
+            });
+            req.on('timeout', () => {
+                req.destroy();
+                resolve(false);
+            });
+            req.write(postData);
+            req.end();
+        } catch (e) {
+            resolve(false);
+        }
+    });
 }
 
 function trackUser(from) {
@@ -213,12 +228,13 @@ function trackUser(from) {
 
     const obj = {
         id: idStr,
-        first_name: from.first_name || '',
-        last_name: from.last_name || '',
-        username: from.username || '',
+        first_name: from.first_name || (existing ? existing.first_name : ''),
+        last_name: from.last_name || (existing ? existing.last_name : ''),
+        username: from.username || (existing ? existing.username : ''),
         platform: 'Telegram Bot',
         semester: existing ? existing.semester : null,
         semester_name: existing ? existing.semester_name : null,
+        semesterUpdatedAt: existing ? existing.semesterUpdatedAt : null,
         registeredAt: existing ? existing.registeredAt : new Date().toISOString(),
         lastSeen: new Date().toISOString()
     };
@@ -732,13 +748,34 @@ exports.handler = async (event) => {
 
             const subs = loadSubscribers();
             const idx = subs.findIndex(s => String(s.id) === userId);
+            let userObj;
             if (idx > -1) {
                 subs[idx].semester = semNum;
                 subs[idx].semester_name = semName;
+                if (from.first_name) subs[idx].first_name = from.first_name;
+                if (from.last_name) subs[idx].last_name = from.last_name;
+                if (from.username) subs[idx].username = from.username;
                 subs[idx].semesterUpdatedAt = new Date().toISOString();
-                saveSubscribers(subs);
-                syncUserToDedicatedServer(subs[idx]);
+                subs[idx].lastSeen = new Date().toISOString();
+                userObj = subs[idx];
+            } else {
+                userObj = {
+                    id: userId,
+                    first_name: from.first_name || '',
+                    last_name: from.last_name || '',
+                    username: from.username || '',
+                    platform: 'Telegram Bot',
+                    semester: semNum,
+                    semester_name: semName,
+                    registeredAt: new Date().toISOString(),
+                    semesterUpdatedAt: new Date().toISOString(),
+                    lastSeen: new Date().toISOString()
+                };
+                subs.push(userObj);
             }
+
+            saveSubscribers(subs);
+            await syncUserToDedicatedServer(userObj);
 
             const successText =
                 `🎓 <b>Semester Registered Successfully!</b>\n` +
