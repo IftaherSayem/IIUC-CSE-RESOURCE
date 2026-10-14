@@ -741,12 +741,9 @@ exports.handler = async (event) => {
             }
 
             const successText =
-                `🎓 <b>Semester Registered Successfully!</b>\n\n` +
-                `You are now registered for <b>${semName}</b>.\n\n` +
-                `Whenever previous exam questions (Mid & Final Term) are released for <b>${semName}</b>, they will be automatically sent to you here directly from our repository!\n\n` +
-                `🌐 <i>Browse all slides, syllabus & questions anytime on our web app:</i>\n` +
-                `🔗 https://cseresourceofiiuc.netlify.app\n\n` +
-                `💡 <i>Need to change semester later? Send /semester anytime.</i>`;
+                `🎓 <b>Semester Registered Successfully!</b>\n` +
+                ` 🍄You are now registered for <b>${semName}</b>.\n` +
+                ` 💡 Need to change semester later? Click on the button below.`;
 
             if (msgId) {
                 await callTelegram('editMessageText', {
@@ -756,7 +753,7 @@ exports.handler = async (event) => {
                     parse_mode: 'HTML',
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: '🔄 Change Semester', callback_data: 'select_semester', style: 'primary' }]
+                            [{ text: 'Change Semester', callback_data: 'select_semester', style: 'primary' }]
                         ]
                     }
                 });
