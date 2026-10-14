@@ -376,7 +376,7 @@ const SEMESTER_SELECTION_KEYBOARD = {
 
 // Semester Card Prompt Text with Blockquote
 const SEMESTER_CARD_TEXT =
-    `👋 <b>Welcome to IIUC CSE Resource Hub Bot!</b>\n\n` +
+    `👋 <b>Assalamualaikum. Welcome to IIUC CSE Resource Bot!</b>\n\n` +
     `🎓 <b>Which semester are you in?</b>\n` +
     `<blockquote>Please select your semester below so we can automatically deliver relevant previous exam questions before the exam :</blockquote>`;
 

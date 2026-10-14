@@ -251,7 +251,7 @@ setInterval(async () => {
             await executeStandaloneDueTasks();
         }
         // Heartbeat ping to Netlify serverless endpoint so Netlify never sleeps and executes on time
-        https.get('https://cseresourceofiiuc.netlify.app/.netlify/functions/telegram', () => {}).on('error', () => {});
+        https.get('https://cseresourceofiiuc.netlify.app/.netlify/functions/telegram', () => { }).on('error', () => { });
     } catch (e) {
         console.error('[SERVER] 24/7 Scheduler execution error:', e.message);
     }
@@ -804,7 +804,7 @@ function loadScheduledTasks() {
         if (fs.existsSync(TASKS_FILE)) {
             return JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8'));
         }
-    } catch (e) {}
+    } catch (e) { }
     return [];
 }
 
@@ -878,7 +878,7 @@ function trackUser(from) {
 function getAdminPanelPayload() {
     const subscribers = loadSubscribers();
     const tasks = loadScheduledTasks().filter(t => t.status === 'pending');
-    const text = 
+    const text =
         `👑 <b>Admin Control Panel</b>\n\n` +
         `👥 Registered Subscribers: <b>${subscribers.length}</b>\n` +
         `⏰ Pending Scheduled Auto-Sends: <b>${tasks.length}</b>\n` +
@@ -969,7 +969,7 @@ async function executeDueTasks() {
                         ]
                     }
                 });
-            } catch (e) {}
+            } catch (e) { }
         }
     }
 
@@ -1516,7 +1516,7 @@ async function processTelegramUpdate(update) {
             let fail = 0;
 
             const messageText =
-                `👋 <b>Welcome to IIUC CSE Resource Hub Bot!</b>\n\n` +
+                `👋 <b>Assalamualaikum. Welcome to IIUC CSE Resource Bot!</b>\n\n` +
                 `🎓 <b>Which semester are you in?</b>\n` +
                 `<blockquote>Please select your semester below so we can automatically deliver relevant previous exam questions before the exam :</blockquote>`;
 
@@ -1554,14 +1554,14 @@ async function processTelegramUpdate(update) {
                         ]
                     }
                 });
-            } catch (e) {}
+            } catch (e) { }
 
             return;
         }
 
         if (data === 'admin_broadcast_start') {
             adminBroadcastState.set(userId, { step: 'waiting_for_broadcast', promptMsgId: msgId });
-            const promptText = 
+            const promptText =
                 `📢 <b>General Announcement Broadcast Mode</b>\n\n` +
                 `Please send or forward the message you want to broadcast now.\n` +
                 `Supports text with formatting, photos with captions, and documents.\n\n` +
@@ -1643,7 +1643,7 @@ async function processTelegramUpdate(update) {
             }
 
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-            const reportText = 
+            const reportText =
                 `✅ <b>General Announcement Broadcast Completed!</b>\n\n` +
                 `• Successfully Sent: <b>${successCount}</b>\n` +
                 `• Failed / Blocked: <b>${failCount}</b>\n` +
@@ -1674,11 +1674,11 @@ async function processTelegramUpdate(update) {
                 else unassigned++;
             });
 
-            let subList = subscribers.slice(-8).reverse().map((u, i) => 
+            let subList = subscribers.slice(-8).reverse().map((u, i) =>
                 `${i + 1}. <b>${u.first_name || 'User'}</b> (@${u.username || 'n/a'}) - ${u.semester ? `[Sem ${u.semester}]` : '[No Sem]'}`
             ).join('\n');
 
-            const text = 
+            const text =
                 `👥 <b>Subscribers & Semester Overview</b>\n\n` +
                 `Total Registered: <b>${subscribers.length}</b>\n\n` +
                 `<b>Semester Distribution:</b>\n` +
@@ -1709,7 +1709,7 @@ async function processTelegramUpdate(update) {
             const subscribers = loadSubscribers();
             const tasks = loadScheduledTasks().filter(t => t.status === 'pending');
             const uptime = Math.round(process.uptime());
-            const text = 
+            const text =
                 `📊 <b>System Status</b>\n\n` +
                 `• Bot: <b>@iiuccseresourcebot</b> (Active 🟢)\n` +
                 `• Server: <b>Node.js (Port ${PORT})</b>\n` +
