@@ -1995,14 +1995,12 @@ async function processTelegramUpdate(update) {
                     await callTelegramApi('sendMessage', {
                         chat_id: userId,
                         text:
-                            `👋 <b>Welcome back, ${user.first_name || 'Student'}!</b>\n\n` +
-                            `🎓 Registered for: <b>${user.semester_name || user.semester + 'th Semester'}</b>\n\n` +
-                            `Previous exam questions for your semester will be delivered to you here automatically.\n\n` +
-                            `🌐 <b>Open Web App Portal:</b>\n🔗 https://cseresourceofiiuc.netlify.app`,
+                            `Welcome back, ${user.first_name || 'Student'}!\n` +
+                            `Registered for: <b>${user.semester_name || user.semester + 'th Semester'}</b>`,
                         parse_mode: 'HTML',
                         reply_markup: {
                             inline_keyboard: [
-                                [{ text: '🔄 Change Semester', callback_data: 'select_semester', style: 'primary' }]
+                                [{ text: 'Change Semester', callback_data: 'select_semester', style: 'primary' }]
                             ]
                         }
                     });
