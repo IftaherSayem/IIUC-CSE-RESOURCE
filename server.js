@@ -62,11 +62,193 @@ for (const p of possiblePaths) {
     }
 }
 
+// -------------------------------------------------------------
+// STANDALONE 24/7 SCHEDULER & DISPATCH ENGINE (Zero Dependency)
+// Works directly on Bot-Keep even if netlify/ folder is not uploaded
+// -------------------------------------------------------------
+const QUESTION_CATALOG = {
+    1: {
+        Mid: ["1st_Mid_Au23.pdf", "1st_Mid_Au25.pdf", "1st_Mid_Aut22.pdf", "1st_Mid_Sp22.pdf", "1st_Mid_Sp23.pdf", "1st_Mid_Sp25.pdf", "1st_Mid_Sp26.pdf", "1st_Mid_Spr24.pdf"],
+        Final: ["1st_Final_Au22.pdf", "1st_Final_Au23.pdf", "1st_Final_Au25.pdf", "1st_Final_Sp22.pdf", "1st_Final_Sp23.pdf", "1st_Final_Sp24.pdf", "1st_Final_Sp25.pdf", "1st_Final_Sp26.pdf"]
+    },
+    2: {
+        Mid: ["2nd_Mid_Au22.pdf", "2nd_Mid_Au23.pdf", "2nd_Mid_Au25.pdf", "2nd_Mid_Sp22.pdf", "2nd_Mid_Sp23.pdf", "2nd_Mid_Sp24.pdf", "2nd_Mid_Sp25.pdf", "2nd_Mid_Sp26.pdf"],
+        Final: ["2nd_Final_Au22.pdf", "2nd_Final_Au23.pdf", "2nd_Final_Au24.pdf", "2nd_Final_Au25.pdf", "2nd_Final_Sp22.pdf", "2nd_Final_Sp23.pdf", "2nd_Final_Sp24.pdf", "2nd_Final_Sp25.pdf"]
+    },
+    3: {
+        Mid: ["3rd_Mid_Au23.pdf", "3rd_Mid_Au25.pdf", "3rd_Mid_Sp22.pdf", "3rd_Mid_Sp23.pdf", "3rd_Mid_Sp24.pdf", "3rd_Mid_Sp25.pdf", "3rd_Mid_Sp26.pdf", "3rd_mid_Aut22.pdf"],
+        Final: ["3rd_FInal_Au25.pdf", "3rd_Final_Au22.pdf", "3rd_Final_Au23.pdf", "3rd_Final_Au24.pdf", "3rd_Final_Sp22.pdf", "3rd_Final_Sp23.pdf", "3rd_Final_Sp24.pdf", "3rd_Final_Sp25.pdf", "3rd_Final_Sp26.pdf"]
+    },
+    4: {
+        Mid: ["4th_Mid_Au21.pdf", "4th_Mid_Au22.pdf", "4th_Mid_Au23.pdf", "4th_Mid_Au25.pdf", "4th_Mid_Sp23.pdf", "4th_Mid_Sp24.pdf", "4th_Mid_Sp25.pdf"],
+        Final: ["4th_Final_Au21.pdf", "4th_Final_Au22.pdf", "4th_Final_Au23.pdf", "4th_Final_Au25.pdf", "4th_Final_Sp23.pdf", "4th_Final_Sp24.pdf", "4th_Final_Sp25.pdf", "4th_Final_Sp26.pdf"]
+    },
+    5: {
+        Mid: ["5th_Mid_Au23.pdf", "5th_Mid_Au25.pdf", "5th_Mid_Sp22.pdf", "5th_Mid_Sp23.pdf", "5th_Mid_Sp24.pdf", "5th_Mid_Sp25.pdf", "5th_Mid_Sp26.pdf"],
+        Final: ["5th_Final-Sp23.pdf", "5th_Final_Au23.pdf", "5th_Final_Au25.pdf", "5th_Final_Sp22.pdf", "5th_Final_Sp24.pdf", "5th_Final_Sp25.pdf", "5th_Final_Sp26.pdf"]
+    },
+    6: {
+        Mid: ["6th_Mid_Au21.pdf", "6th_Mid_Au22.pdf", "6th_Mid_Au25.pdf", "6th_Mid_Sp22.pdf", "6th_Mid_Sp24.pdf", "6th_Mid_Sp25.pdf", "6th_Mid_Sp26.pdf"],
+        Final: ["6th_Final_Au21.pdf", "6th_Final_Au22.pdf", "6th_Final_Au23.pdf", "6th_Final_Au24.pdf", "6th_Final_Au25.pdf", "6th_Final_Sp22.pdf", "6th_Final_Sp24.pdf", "6th_Final_Sp25.pdf"]
+    },
+    7: {
+        Mid: ["7th_Mid_Au21.pdf", "7th_Mid_Au22.pdf", "7th_Mid_Au25.pdf", "7th_Mid_Sp22.pdf", "7th_Mid_Sp23.pdf", "7th_Mid_Sp25.pdf", "7th_Mid_Sp26.pdf"],
+        Final: ["7th_Final_Au21.pdf", "7th_Final_Au22.pdf", "7th_Final_Au25.pdf", "7th_Final_Sp22.pdf", "7th_Final_Sp25.pdf"]
+    },
+    8: {
+        Mid: ["8th_Mid_Au25.pdf", "8th_Mid_Sp25.pdf", "8th_Mid_Sp26.pdf"],
+        Final: ["8th_Final_Sp25.pdf"]
+    }
+};
+
+
+
+function callTelegramRaw(method, params = {}) {
+    return new Promise((resolve) => {
+        const postData = JSON.stringify(params);
+        const req = https.request({
+            hostname: 'api.telegram.org',
+            path: `/bot${BOT_TOKEN}/${method}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            },
+            timeout: 15000
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try { resolve(JSON.parse(data)); } catch (e) { resolve({ ok: false, error: 'JSON parse error' }); }
+            });
+        });
+        req.on('error', (err) => resolve({ ok: false, error: err.message }));
+        req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'Timeout' }); });
+        req.write(postData);
+        req.end();
+    });
+}
+
+async function executeStandaloneDueTasks() {
+    const tasks = loadScheduledTasks();
+    const now = Date.now();
+    let hasChanges = false;
+
+    for (const task of tasks) {
+        if (task.status === 'pending' && task.scheduledTime <= now) {
+            task.status = 'executing';
+            saveScheduledTasks(tasks);
+
+            const subscribers = loadSubscribers();
+            const isAll = (!task.semester || task.semester === 'all');
+            const targetSubs = isAll
+                ? subscribers.filter(s => s.semester && parseInt(s.semester, 10) >= 1 && parseInt(s.semester, 10) <= 8)
+                : subscribers.filter(s => String(s.semester) === String(task.semester));
+
+            const cleanExam = (task.examType && task.examType.toLowerCase().includes('mid')) ? 'Mid' : 'Final';
+            let successCount = 0;
+            let failCount = 0;
+            let totalPdfs = 0;
+
+            for (const sub of targetSubs) {
+                const semNum = parseInt(sub.semester, 10);
+                const filenames = (QUESTION_CATALOG[semNum] && QUESTION_CATALOG[semNum][cleanExam])
+                    ? [...QUESTION_CATALOG[semNum][cleanExam]]
+                    : [];
+
+                if (filenames.length === 0) continue;
+
+                const fileUrls = filenames.map(name =>
+                    `https://raw.githubusercontent.com/11UCRES/cse/main/Semester${semNum}/PreviousQuestions/${cleanExam}/${encodeURIComponent(name)}`
+                );
+
+                try {
+                    if (fileUrls.length === 1) {
+                        await callTelegramRaw('sendDocument', {
+                            chat_id: sub.id,
+                            document: fileUrls[0],
+                            caption: 'auto delivered from : @iiuccseresourcebot'
+                        });
+                        totalPdfs += 1;
+                    } else {
+                        const chunkSize = 10;
+                        for (let i = 0; i < fileUrls.length; i += chunkSize) {
+                            const chunk = fileUrls.slice(i, i + chunkSize);
+                            if (chunk.length === 1) {
+                                await callTelegramRaw('sendDocument', {
+                                    chat_id: sub.id,
+                                    document: chunk[0],
+                                    caption: 'auto delivered from : @iiuccseresourcebot'
+                                });
+                                totalPdfs += 1;
+                            } else {
+                                const media = chunk.map((url, idx) => ({
+                                    type: 'document',
+                                    media: url,
+                                    caption: (i === 0 && idx === 0) ? 'auto delivered from : @iiuccseresourcebot' : ''
+                                }));
+                                const res = await callTelegramRaw('sendMediaGroup', {
+                                    chat_id: sub.id,
+                                    media: media
+                                });
+                                if (!res || !res.ok) {
+                                    for (const docUrl of chunk) {
+                                        await callTelegramRaw('sendDocument', {
+                                            chat_id: sub.id,
+                                            document: docUrl,
+                                            caption: 'auto delivered from : @iiuccseresourcebot'
+                                        });
+                                        await new Promise(r => setTimeout(r, 150));
+                                    }
+                                }
+                                totalPdfs += chunk.length;
+                            }
+                        }
+                    }
+                    successCount++;
+                } catch (e) {
+                    failCount++;
+                }
+            }
+
+            task.status = 'completed';
+            task.completedAt = new Date().toISOString();
+            task.successCount = successCount;
+            task.failCount = failCount;
+            hasChanges = true;
+
+            // Notify Admin
+            try {
+                const report =
+                    `🔔 <b>Auto-Send Completed: Previous Questions from GitHub!</b>\n\n` +
+                    `• Scope: <b>${task.semesterName || 'All Semesters (1st – 8th)'}</b>\n` +
+                    `• Exam Category: <b>${task.examType} Term</b>\n` +
+                    `• Delivered to: <b>${successCount} students</b>\n` +
+                    `• Failed / Blocked: <b>${failCount}</b>\n` +
+                    `• Repository PDFs Dispatched: <b>${totalPdfs} files</b>\n` +
+                    `• Engine: <b>Bot-Keep 24/7 Dedicated Server</b> 🟢`;
+
+                await callTelegramRaw('sendMessage', {
+                    chat_id: task.adminChatId || ADMIN_CHAT_ID,
+                    text: report,
+                    parse_mode: 'HTML'
+                });
+            } catch (e) { }
+        }
+    }
+
+    if (hasChanges) {
+        saveScheduledTasks(tasks);
+    }
+}
+
 // 24/7 Background Scheduler Loop (checks every 10 seconds for exact-second auto-send delivery)
 setInterval(async () => {
     try {
         if (telegramModule && typeof telegramModule.executeDueTasks === 'function') {
             await telegramModule.executeDueTasks();
+        } else {
+            await executeStandaloneDueTasks();
         }
         // Heartbeat ping to Netlify serverless endpoint so Netlify never sleeps and executes on time
         https.get('https://cseresourceofiiuc.netlify.app/.netlify/functions/telegram', () => {}).on('error', () => {});
@@ -180,22 +362,46 @@ const server = http.createServer(async (req, res) => {
 
     // 1.1 Telegram Webhook Handler (Bot-Keep 24/7 Server Endpoint)
     if (pathname === '/api/telegram/webhook' || pathname === '/api/telegram' || pathname === '/.netlify/functions/telegram') {
-        if (!telegramModule) {
-            return sendJson(res, 500, { ok: false, error: 'Telegram bot module not loaded' });
+        if (telegramModule && typeof telegramModule.handler === 'function') {
+            try {
+                const body = (req.method === 'POST') ? await parseBody(req) : {};
+                const event = {
+                    httpMethod: req.method,
+                    body: typeof body === 'string' ? body : JSON.stringify(body),
+                    headers: req.headers
+                };
+                const result = await telegramModule.handler(event);
+                res.writeHead(result.statusCode || 200, result.headers || { 'Content-Type': 'application/json' });
+                return res.end(result.body || '{"ok":true}');
+            } catch (e) {
+                console.error('[SERVER] Webhook handling error:', e);
+                return sendJson(res, 500, { ok: false, error: e.message });
+            }
         }
+
+        // Standalone Proxy: If telegram.js is not present on the server (e.g. BotKeep single-file upload),
+        // seamlessly forward webhook payload to the Netlify production bot endpoint!
         try {
             const body = (req.method === 'POST') ? await parseBody(req) : {};
-            const event = {
-                httpMethod: req.method,
-                body: typeof body === 'string' ? body : JSON.stringify(body),
-                headers: req.headers
-            };
-            const result = await telegramModule.handler(event);
-            res.writeHead(result.statusCode || 200, result.headers || { 'Content-Type': 'application/json' });
-            return res.end(result.body || '{"ok":true}');
-        } catch (e) {
-            console.error('[SERVER] Webhook handling error:', e);
-            return sendJson(res, 500, { ok: false, error: e.message });
+            const postData = typeof body === 'string' ? body : JSON.stringify(body);
+            const netlifyReq = https.request('https://cseresourceofiiuc.netlify.app/.netlify/functions/telegram', {
+                method: req.method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(postData)
+                }
+            }, (proxyRes) => {
+                res.writeHead(proxyRes.statusCode || 200, proxyRes.headers || { 'Content-Type': 'application/json' });
+                proxyRes.pipe(res);
+            });
+            netlifyReq.on('error', (err) => {
+                sendJson(res, 502, { ok: false, error: 'Netlify proxy error: ' + err.message });
+            });
+            netlifyReq.write(postData);
+            netlifyReq.end();
+            return;
+        } catch (err) {
+            return sendJson(res, 500, { ok: false, error: err.message });
         }
     }
 
