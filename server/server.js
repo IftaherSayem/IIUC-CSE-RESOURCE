@@ -286,6 +286,26 @@ const server = http.createServer(async (req, res) => {
             }
 
             if (replyMarkup) {
+                // Support and preserve Telegram button styles ('success', 'primary', 'danger') like Ishan Bhai OTP bot
+                const validStyles = ['primary', 'success', 'danger'];
+                const sanitizeButtons = (rows) => {
+                    if (!Array.isArray(rows)) return rows;
+                    return rows.map(row => {
+                        if (!Array.isArray(row)) return row;
+                        return row.map(btn => {
+                            if (btn && btn.style && !validStyles.includes(btn.style)) {
+                                delete btn.style;
+                            }
+                            return btn;
+                        });
+                    });
+                };
+                if (Array.isArray(replyMarkup.inline_keyboard)) {
+                    replyMarkup.inline_keyboard = sanitizeButtons(replyMarkup.inline_keyboard);
+                }
+                if (Array.isArray(replyMarkup.keyboard)) {
+                    replyMarkup.keyboard = sanitizeButtons(replyMarkup.keyboard);
+                }
                 payload.reply_markup = replyMarkup;
             }
 

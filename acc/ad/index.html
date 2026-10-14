@@ -378,7 +378,7 @@
             border-radius: 10px;
             padding: 12px;
             display: grid;
-            grid-template-columns: 1.5fr 1fr 2fr auto;
+            grid-template-columns: 1.4fr 1fr 1.8fr 1.1fr auto;
             gap: 10px;
             align-items: center;
         }
@@ -588,6 +588,11 @@
         .tg-preview-btn.btn-style-blue {
             background: linear-gradient(135deg, #0088cc 0%, #0077b5 100%);
             box-shadow: 0 4px 12px rgba(0, 136, 204, 0.28);
+        }
+
+        .tg-preview-btn.btn-style-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.28);
         }
 
         .tg-preview-btn:hover {
@@ -820,7 +825,7 @@
                 </div>
             </div>
             <div class="header-actions">
-                <a href="../../index.html" class="btn-link">
+                <a href="index.html" class="btn-link">
                     <i class="fas fa-graduation-cap"></i> Resource Hub
                 </a>
                 <button type="button" class="btn-link" onclick="handleAdminLogout()" title="Log out from Admin session" style="color: var(--danger-color); border-color: rgba(231,29,54,0.3);">
@@ -947,7 +952,7 @@
                     <div class="inline-btn-section">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                             <label class="form-label" style="margin-bottom: 0;">
-                                <i class="fas fa-th"></i> Telegram Inline Buttons (2x2 Grid Layout)
+                                <i class="fas fa-th"></i> Telegram Buttons (Ishan Bhai Bot Reference &amp; Style)
                             </label>
                             <button type="button" class="btn-add-action" onclick="addInlineButton()">
                                 <i class="fas fa-plus"></i> Add Button
@@ -957,17 +962,19 @@
                         <!-- Layout & Style Controls -->
                         <div style="display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;">
                             <div style="flex: 1; min-width: 200px;">
-                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Button Grid Layout</label>
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Button Layout &amp; Menu Type</label>
                                 <select id="buttonLayout" class="form-control" onchange="updatePreview()">
-                                    <option value="grid" selected>🎛️ 2 Columns (2x2 Grid - like in screenshot)</option>
-                                    <option value="single">☰ 1 Column (Full Width Stack)</option>
+                                    <option value="grid" selected>🎛️ 4-Button 2x2 Grid (2 Buttons / Row - Ishan Bot)</option>
+                                    <option value="4lines">☰ 4 Lines (1 Button per Line - Full Width Stack)</option>
+                                    <option value="keyboard">⊞ 4-Dot Menu Keyboard (Reply Keyboard)</option>
                                 </select>
                             </div>
                             <div style="flex: 1; min-width: 200px;">
-                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Button Color Style</label>
+                                <label class="form-label" style="font-size: 0.8rem; margin-bottom: 4px;">Default Button Style</label>
                                 <select id="buttonColorStyle" class="form-control" onchange="updatePreview()">
-                                    <option value="green" selected>🟢 Vibrant Green (Emerald Style)</option>
-                                    <option value="blue">🔵 Telegram Ocean Blue</option>
+                                    <option value="success" selected>🟢 Vibrant Green (style: 'success' - Ishan Bot)</option>
+                                    <option value="primary">🔵 Telegram Ocean Blue (style: 'primary')</option>
+                                    <option value="danger">🔴 Crimson Red (style: 'danger')</option>
                                 </select>
                             </div>
                         </div>
@@ -979,7 +986,9 @@
                         <!-- Presets -->
                         <div class="presets-row">
                             <span style="font-size: 0.75rem; color: var(--light-text); display: flex; align-items: center;">Quick Presets:</span>
-                            <span class="preset-badge" onclick="applyPreset('4grid')" style="border-color: #10b981; color: #10b981; font-weight: 600;">✨ 4-Button 2x2 Grid (Photo Layout)</span>
+                            <span class="preset-badge" onclick="applyPreset('4grid')" style="border-color: #10b981; color: #10b981; font-weight: 600;">🎛️ 4-Button 2x2 Grid</span>
+                            <span class="preset-badge" onclick="applyPreset('4lines')" style="border-color: #10b981; color: #10b981; font-weight: 600;">☰ 4 Lines (1 per Row)</span>
+                            <span class="preset-badge" onclick="applyPreset('keyboard')" style="border-color: #38bdf8; color: #38bdf8; font-weight: 600;">⊞ 4-Dot Menu Keyboard</span>
                             <span class="preset-badge" onclick="applyPreset('webapp')">🟢 Open Hub</span>
                             <span class="preset-badge" onclick="applyPreset('channel')">📢 Channel</span>
                             <span class="preset-badge" onclick="applyPreset('support')">💬 Support</span>
@@ -1155,12 +1164,12 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
         let isBroadcasting = false;
         let shouldStopBroadcast = false;
 
-        // Initialize default 4 buttons (2x2 grid layout matching photo)
+        // Initialize default 4 buttons (Ishan Bhai bot configuration reference)
         inlineButtons = [
-            { text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL },
-            { text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse' },
-            { text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem' },
-            { text: '📚 Materials', type: 'webapp', url: CURRENT_APP_URL }
+            { text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' },
+            { text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' },
+            { text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' },
+            { text: '📚 Materials', type: 'webapp', url: CURRENT_APP_URL, style: 'success' }
         ];
 
         // Theme Setup
@@ -1319,7 +1328,7 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
             }, 3500);
         }
 
-        // Inline Buttons Management
+        // Inline Buttons Management (Ishan Bhai Bot Reference & Style)
         function renderInlineButtons() {
             const list = document.getElementById('inlineBtnList');
             list.innerHTML = '';
@@ -1341,6 +1350,13 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
                         <input type="url" class="form-control" placeholder="URL Address" value="${escapeHtml(btn.url)}" oninput="updateBtnUrl(${index}, this.value)">
                     </div>
                     <div>
+                        <select class="form-control" onchange="updateBtnStyle(${index}, this.value)" title="Button Style">
+                            <option value="success" ${(btn.style || 'success') === 'success' ? 'selected' : ''}>🟢 Green (success)</option>
+                            <option value="primary" ${btn.style === 'primary' ? 'selected' : ''}>🔵 Blue (primary)</option>
+                            <option value="danger" ${btn.style === 'danger' ? 'selected' : ''}>🔴 Red (danger)</option>
+                        </select>
+                    </div>
+                    <div>
                         <button type="button" class="btn-remove" onclick="removeInlineButton(${index})" title="Remove Button">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -1354,13 +1370,14 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
 
         function addInlineButton() {
             if (inlineButtons.length >= 8) {
-                showToast('Maximum 8 inline buttons allowed', 'warning');
+                showToast('Maximum 8 buttons allowed', 'warning');
                 return;
             }
             inlineButtons.push({
                 text: 'New Button',
                 type: 'url',
-                url: 'https://'
+                url: 'https://',
+                style: 'success'
             });
             renderInlineButtons();
         }
@@ -1385,24 +1402,54 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
             updatePreview();
         }
 
+        function updateBtnStyle(index, val) {
+            inlineButtons[index].style = val;
+            updatePreview();
+        }
+
         function applyPreset(type) {
             if (type === '4grid') {
                 inlineButtons = [
-                    { text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL },
-                    { text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse' },
-                    { text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem' },
-                    { text: '📚 Materials', type: 'webapp', url: CURRENT_APP_URL }
+                    { text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' },
+                    { text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' },
+                    { text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' },
+                    { text: '📚 Materials', type: 'webapp', url: CURRENT_APP_URL, style: 'success' }
                 ];
+                if (document.getElementById('buttonLayout')) document.getElementById('buttonLayout').value = 'grid';
                 renderInlineButtons();
-                showToast('Applied 4-Button 2x2 Grid preset', 'success');
+                showToast('Applied 4-Button 2x2 Grid preset (Ishan Bhai bot style)', 'success');
+                return;
+            }
+            if (type === '4lines') {
+                inlineButtons = [
+                    { text: '🟢 Open Resource Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' },
+                    { text: '📢 Join Official Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' },
+                    { text: '💬 Contact Admin Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' },
+                    { text: '📚 Download Past Materials', type: 'webapp', url: CURRENT_APP_URL, style: 'success' }
+                ];
+                if (document.getElementById('buttonLayout')) document.getElementById('buttonLayout').value = '4lines';
+                renderInlineButtons();
+                showToast('Applied 4-Line Buttons preset (1 button per row)', 'success');
+                return;
+            }
+            if (type === 'keyboard') {
+                inlineButtons = [
+                    { text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' },
+                    { text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' },
+                    { text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' },
+                    { text: '📚 Materials', type: 'webapp', url: CURRENT_APP_URL, style: 'success' }
+                ];
+                if (document.getElementById('buttonLayout')) document.getElementById('buttonLayout').value = 'keyboard';
+                renderInlineButtons();
+                showToast('Applied 4-Dot Menu Keyboard preset (ReplyKeyboardMarkup)', 'success');
                 return;
             }
             if (type === 'webapp') {
-                inlineButtons.push({ text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL });
+                inlineButtons.push({ text: '🟢 Open Hub', type: 'webapp', url: CURRENT_APP_URL, style: 'success' });
             } else if (type === 'channel') {
-                inlineButtons.push({ text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse' });
+                inlineButtons.push({ text: '📢 Channel', type: 'url', url: 'https://t.me/iiuc_cse', style: 'success' });
             } else if (type === 'support') {
-                inlineButtons.push({ text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem' });
+                inlineButtons.push({ text: '💬 Support', type: 'url', url: 'https://t.me/IftaherSayem', style: 'success' });
             }
             renderInlineButtons();
             showToast('Preset button added', 'success');
@@ -1473,28 +1520,33 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
 
             previewMsg.innerHTML = sampleFormatted;
 
-            // Render Preview Buttons in 2x2 Grid or 1 Col
+            // Render Preview Buttons in 2x2 Grid or 4 Lines or Keyboard
             const buttonsContainer = document.getElementById('previewInlineButtons');
             const layout = document.getElementById('buttonLayout')?.value || 'grid';
-            const colorStyle = document.getElementById('buttonColorStyle')?.value || 'green';
+            const defaultStyle = document.getElementById('buttonColorStyle')?.value || 'success';
 
             if (buttonsContainer) {
                 buttonsContainer.innerHTML = '';
-                if (layout === 'single') {
+                if (layout === '4lines') {
                     buttonsContainer.classList.add('layout-single');
                 } else {
                     buttonsContainer.classList.remove('layout-single');
                 }
 
                 inlineButtons.forEach(btn => {
+                    const style = btn.style || defaultStyle || 'success';
                     let label = btn.text || 'Button';
-                    if (colorStyle === 'green' && !label.includes('🟢') && !label.includes('🌿')) {
+                    if (style === 'success' && !label.includes('🟢') && !label.includes('🌿')) {
                         label = '🟢 ' + label;
                     }
                     const icon = btn.type === 'webapp' ? 'fa-window-maximize' : 'fa-external-link-alt';
 
                     const b = document.createElement('div');
-                    b.className = `tg-preview-btn ${colorStyle === 'blue' ? 'btn-style-blue' : ''}`;
+                    let styleClass = '';
+                    if (style === 'primary') styleClass = 'btn-style-blue';
+                    else if (style === 'danger') styleClass = 'btn-style-danger';
+
+                    b.className = `tg-preview-btn ${styleClass}`;
                     b.innerHTML = `<i class="fas ${icon}"></i> ${escapeHtml(label)}`;
                     buttonsContainer.appendChild(b);
                 });
@@ -1522,24 +1574,25 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
             }
         }
 
-        // Construct Telegram reply_markup for 2x2 grid inline keyboard
+        // Construct Telegram reply_markup (Ishan Bhai Bot Reference & Style Integration)
         function buildReplyMarkup() {
             if (!inlineButtons || inlineButtons.length === 0) return null;
 
             const layout = document.getElementById('buttonLayout')?.value || 'grid';
-            const colorStyle = document.getElementById('buttonColorStyle')?.value || 'green';
+            const defaultStyle = document.getElementById('buttonColorStyle')?.value || 'success';
 
             const validButtons = [];
             inlineButtons.forEach(btn => {
-                if (!btn.text || !btn.url) return;
+                if (!btn.text) return;
+                const style = btn.style || defaultStyle || 'success';
                 let label = btn.text;
-                if (colorStyle === 'green' && !label.includes('🟢') && !label.includes('🌿')) {
+                if (style === 'success' && !label.includes('🟢') && !label.includes('🌿')) {
                     label = '🟢 ' + label;
                 }
-                const btnObj = { text: label };
-                if (btn.type === 'webapp') {
+                const btnObj = { text: label, style: style };
+                if (btn.type === 'webapp' && btn.url) {
                     btnObj.web_app = { url: btn.url };
-                } else {
+                } else if (btn.url) {
                     btnObj.url = btn.url;
                 }
                 validButtons.push(btnObj);
@@ -1547,8 +1600,8 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
 
             if (validButtons.length === 0) return null;
 
-            if (layout === 'grid') {
-                // Arrange in 2x2 grid (2 buttons per row, matching the user's picture)
+            // 1. Reply Keyboard (4-Dot Bottom Menu)
+            if (layout === 'keyboard') {
                 const rows = [];
                 for (let i = 0; i < validButtons.length; i += 2) {
                     if (i + 1 < validButtons.length) {
@@ -1557,10 +1610,28 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
                         rows.push([validButtons[i]]);
                     }
                 }
-                return { inline_keyboard: rows };
-            } else {
+                return {
+                    keyboard: rows,
+                    resize_keyboard: true,
+                    is_persistent: true
+                };
+            }
+
+            // 2. 4 Lines (1 button per line / row)
+            if (layout === '4lines') {
                 return { inline_keyboard: validButtons.map(b => [b]) };
             }
+
+            // 3. 2x2 Grid (2 buttons per row - Ishan Bhai bot reference)
+            const rows = [];
+            for (let i = 0; i < validButtons.length; i += 2) {
+                if (i + 1 < validButtons.length) {
+                    rows.push([validButtons[i], validButtons[i + 1]]);
+                } else {
+                    rows.push([validButtons[i]]);
+                }
+            }
+            return { inline_keyboard: rows };
         }
 
         // Send Test Message to Admin
