@@ -258,6 +258,51 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ========================================================================
+    // API ROUTE 2.2: Telegram Send Message with Reply Markup (Server Mode)
+    // ========================================================================
+    if (pathname === '/api/telegram/send-message' && req.method === 'POST') {
+        try {
+            const body = await parseBody(req);
+            const { chatId, text, photoUrl, replyMarkup, botToken } = body;
+            const activeToken = botToken || BOT_TOKEN;
+
+            if (!chatId) {
+                return sendJson(res, 400, { ok: false, error: 'chatId is required' });
+            }
+
+            const endpoint = photoUrl ? 'sendPhoto' : 'sendMessage';
+            const apiUrl = `https://api.telegram.org/bot${activeToken}/${endpoint}`;
+
+            const payload = {
+                chat_id: chatId,
+                parse_mode: 'HTML'
+            };
+
+            if (photoUrl) {
+                payload.photo = photoUrl;
+                if (text) payload.caption = text;
+            } else {
+                payload.text = text || '🟢 IIUC CSE Resource Hub';
+            }
+
+            if (replyMarkup) {
+                payload.reply_markup = replyMarkup;
+            }
+
+            const tgRes = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const tgData = await tgRes.json();
+            return sendJson(res, tgRes.ok ? 200 : 400, tgData);
+        } catch (error) {
+            console.error('[SERVER] Telegram send-message error:', error);
+            return sendJson(res, 500, { ok: false, error: error.message });
+        }
+    }
+
+    // ========================================================================
     // API ROUTE 2.5: Telegram Set Chat Menu Button Endpoint (Server Mode)
     // ========================================================================
     if (pathname === '/api/telegram/set-menu-button' && req.method === 'POST') {

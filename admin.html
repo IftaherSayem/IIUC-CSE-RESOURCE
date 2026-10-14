@@ -1772,8 +1772,31 @@ Welcome to the Academic Resource Hub. New questions and slides have been uploade
             }
         }
 
-        // Send individual Telegram message/photo
+        // Send individual Telegram message/photo (Server-First with Direct Fallback)
         async function sendTelegramItem(chatId, text, photoUrl, replyMarkup) {
+            // 1. First try Backend Server (immune to ISP blocks and browser CORS)
+            if (SERVER_URL) {
+                try {
+                    const serverRes = await fetch(`${SERVER_URL}/api/telegram/send-message`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chatId,
+                            text,
+                            photoUrl,
+                            replyMarkup,
+                            botToken: BOT_TOKEN
+                        }),
+                        signal: AbortSignal.timeout(6000)
+                    });
+                    const sData = await serverRes.json();
+                    if (sData.ok) return sData;
+                } catch (e) {
+                    console.warn('Server proxy send failed, trying direct Telegram API...', e);
+                }
+            }
+
+            // 2. Direct Telegram API fallback
             const endpoint = photoUrl ? 'sendPhoto' : 'sendMessage';
             const apiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/${endpoint}`;
 
