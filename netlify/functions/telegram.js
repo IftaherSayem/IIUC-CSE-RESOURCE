@@ -334,26 +334,41 @@ function getAdminPanelPayload() {
 // -------------------------------------------------------------
 async function dispatchGitHubQuestionsToStudents(task) {
     const subscribers = loadSubscribers();
-    const targetSubs = subscribers.filter(s => String(s.semester) === String(task.semester));
+    const isAll = (!task.semester || task.semester === 'all');
+    const targetSubs = isAll
+        ? subscribers.filter(s => s.semester && parseInt(s.semester, 10) >= 1 && parseInt(s.semester, 10) <= 8)
+        : subscribers.filter(s => String(s.semester) === String(task.semester));
 
     if (targetSubs.length === 0) {
-        return { success: 0, fail: 0, total: 0, error: 'No students registered for this semester yet.' };
+        return { success: 0, fail: 0, total: 0, error: 'No students have selected their semester yet.' };
     }
 
-    // Fetch question paper files from GitHub repository
-    const ghRes = await fetchGitHubQuestions(task.semester, task.examType);
-    if (!ghRes.ok || ghRes.files.length === 0) {
-        return { success: 0, fail: 0, total: targetSubs.length, error: ghRes.error || 'No PDF files found in repository.' };
+    const semsToFetch = isAll ? [1, 2, 3, 4, 5, 6, 7, 8] : [parseInt(task.semester, 10)];
+    const repoQuestions = {};
+    let totalPdfs = 0;
+
+    for (const sem of semsToFetch) {
+        const ghRes = await fetchGitHubQuestions(sem, task.examType);
+        if (ghRes && ghRes.ok && Array.isArray(ghRes.files)) {
+            repoQuestions[sem] = ghRes.files;
+            totalPdfs += ghRes.files.length;
+        } else {
+            repoQuestions[sem] = [];
+        }
     }
 
     let successCount = 0;
     let failCount = 0;
 
     for (const sub of targetSubs) {
+        const semNum = parseInt(sub.semester, 10);
+        const semFiles = repoQuestions[semNum] || [];
+        if (semFiles.length === 0) continue;
+
         try {
             // Deliver each PDF document from GitHub repository
-            for (const file of ghRes.files) {
-                const docUrl = file.download_url || `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/main/Semester${task.semester}/PreviousQuestions/${task.examType}/${encodeURIComponent(file.name)}`;
+            for (const file of semFiles) {
+                const docUrl = file.download_url || `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/main/Semester${semNum}/PreviousQuestions/${task.examType}/${encodeURIComponent(file.name)}`;
                 await callTelegram('sendDocument', {
                     chat_id: sub.id,
                     document: docUrl,
@@ -369,7 +384,7 @@ async function dispatchGitHubQuestionsToStudents(task) {
         await new Promise(r => setTimeout(r, 100));
     }
 
-    return { success: successCount, fail: failCount, total: targetSubs.length, fileCount: ghRes.files.length };
+    return { success: successCount, fail: failCount, total: targetSubs.length, fileCount: totalPdfs };
 }
 
 async function executeDueTasks() {
@@ -394,11 +409,11 @@ async function executeDueTasks() {
             try {
                 const report =
                     `🔔 <b>Auto-Send Completed: Previous Questions from GitHub!</b>\n\n` +
-                    `• Semester: <b>${task.semesterName}</b>\n` +
+                    `• Scope: <b>${task.semesterName || 'All Semesters (1st – 8th)'}</b>\n` +
                     `• Exam Category: <b>${task.examType} Term</b>\n` +
-                    `• Delivered to: <b>${result.success} students</b>\n` +
+                    `• Delivered to: <b>${result.success} students</b> (each received their semester's papers)\n` +
                     `• Failed / Blocked: <b>${result.fail}</b>\n` +
-                    `• Question Papers Sent: <b>${result.fileCount || 0} PDFs</b>` +
+                    `• Repository PDFs Scanned: <b>${result.fileCount || 0} files</b>` +
                     (result.error ? `\n\n⚠️ <i>Note: ${result.error}</i>` : '');
 
                 await callTelegram('sendMessage', {
@@ -580,14 +595,22 @@ exports.handler = async (event) => {
         // ---------------------------------------------------------------------
         // ADMIN: AUTO-SEND PREVIOUS QUESTIONS DIRECTLY FROM GITHUB REPOSITORY
         // ---------------------------------------------------------------------
-        // Step 1: Select Target Semester
+        // Step 1: Select Exam Category for All Semesters (1st - 8th)
         if (data === 'admin_gh_start') {
             const subscribers = loadSubscribers();
             const getSemCount = (num) => subscribers.filter(s => String(s.semester) === String(num)).length;
+            const totalWithSem = subscribers.filter(s => s.semester && parseInt(s.semester, 10) >= 1 && parseInt(s.semester, 10) <= 8).length;
+
+            setFlowState(userId, {
+                step: 'select_exam_type',
+                semester: 'all',
+                semesterName: 'All Semesters (1st – 8th)',
+                studentCount: totalWithSem
+            });
 
             const text =
-                `📚 <b>Auto-Send Previous Questions from GitHub</b>\n\n` +
-                `Select which semester's students should receive previous questions:\n\n` +
+                `📚 <b>Auto-Send Previous Questions (1st – 8th Semester)</b>\n\n` +
+                `All registered students will automatically receive their specific semester's question papers directly from GitHub:\n\n` +
                 `• 1st Sem: <b>${getSemCount(1)} students</b>\n` +
                 `• 2nd Sem: <b>${getSemCount(2)} students</b>\n` +
                 `• 3rd Sem: <b>${getSemCount(3)} students</b>\n` +
@@ -596,25 +619,16 @@ exports.handler = async (event) => {
                 `• 6th Sem: <b>${getSemCount(6)} students</b>\n` +
                 `• 7th Sem: <b>${getSemCount(7)} students</b>\n` +
                 `• 8th Sem: <b>${getSemCount(8)} students</b>\n\n` +
-                `<i>Tap a semester below to select exam type (Mid or Final):</i>`;
+                `👥 Total Configured Students: <b>${totalWithSem}</b>\n\n` +
+                `<i>Select the exam category to deliver or schedule:</i>`;
 
             const keyboard = {
                 inline_keyboard: [
                     [
-                        { text: `📘 1st Sem (${getSemCount(1)})`, callback_data: 'admin_gh_sem_1', style: 'primary' },
-                        { text: `📘 2nd Sem (${getSemCount(2)})`, callback_data: 'admin_gh_sem_2', style: 'primary' }
+                        { text: '📝 Mid-Term Exam (All Semesters 1-8)', callback_data: 'admin_gh_exam_Mid', style: 'primary' }
                     ],
                     [
-                        { text: `📘 3rd Sem (${getSemCount(3)})`, callback_data: 'admin_gh_sem_3', style: 'primary' },
-                        { text: `📘 4th Sem (${getSemCount(4)})`, callback_data: 'admin_gh_sem_4', style: 'primary' }
-                    ],
-                    [
-                        { text: `📘 5th Sem (${getSemCount(5)})`, callback_data: 'admin_gh_sem_5', style: 'primary' },
-                        { text: `📘 6th Sem (${getSemCount(6)})`, callback_data: 'admin_gh_sem_6', style: 'primary' }
-                    ],
-                    [
-                        { text: `📘 7th Sem (${getSemCount(7)})`, callback_data: 'admin_gh_sem_7', style: 'primary' },
-                        { text: `📘 8th Sem (${getSemCount(8)})`, callback_data: 'admin_gh_sem_8', style: 'primary' }
+                        { text: '🎓 Final-Term Exam (All Semesters 1-8)', callback_data: 'admin_gh_exam_Final', style: 'primary' }
                     ],
                     [
                         { text: '🔙 Back to Admin Panel', callback_data: 'admin_menu', style: 'danger' }
@@ -630,47 +644,9 @@ exports.handler = async (event) => {
                     parse_mode: 'HTML',
                     reply_markup: keyboard
                 });
-            }
-            return { statusCode: 200, headers, body: '{"ok":true}' };
-        }
-
-        // Step 2: Select Exam Type (Mid or Final)
-        if (data.startsWith('admin_gh_sem_')) {
-            const semNum = parseInt(data.replace('admin_gh_sem_', ''), 10);
-            const semName = `${semNum}${getOrdinal(semNum)} Semester`;
-            const subscribers = loadSubscribers();
-            const studentCount = subscribers.filter(s => String(s.semester) === String(semNum)).length;
-
-            setFlowState(userId, {
-                step: 'select_exam_type',
-                semester: semNum,
-                semesterName: semName,
-                studentCount
-            });
-
-            const text =
-                `📝 <b>Select Exam Category for ${semName}</b>\n\n` +
-                `Target Audience: <b>${studentCount} students</b>\n\n` +
-                `Which previous exam question papers should be sent directly from GitHub?`;
-
-            const keyboard = {
-                inline_keyboard: [
-                    [
-                        { text: '📝 Mid Term Questions', callback_data: 'admin_gh_exam_Mid', style: 'primary' }
-                    ],
-                    [
-                        { text: '🎯 Final Term Questions', callback_data: 'admin_gh_exam_Final', style: 'primary' }
-                    ],
-                    [
-                        { text: '🔙 Back to Semester List', callback_data: 'admin_gh_start', style: 'danger' }
-                    ]
-                ]
-            };
-
-            if (msgId) {
-                await callTelegram('editMessageText', {
+            } else {
+                await callTelegram('sendMessage', {
                     chat_id: userId,
-                    message_id: msgId,
                     text,
                     parse_mode: 'HTML',
                     reply_markup: keyboard
@@ -679,75 +655,43 @@ exports.handler = async (event) => {
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Step 3: Fetch Questions from GitHub and Show Preview & Options
+        // Step 2: Show Preview & Delivery Options for All Semesters
         if (data.startsWith('admin_gh_exam_')) {
             const examType = data.replace('admin_gh_exam_', '');
-            const state = getFlowState(userId);
-            if (!state || !state.semester) {
-                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ Session expired. Please start again from /admin.' });
-                return { statusCode: 200, headers, body: '{"ok":true}' };
-            }
+            const subscribers = loadSubscribers();
+            const totalWithSem = subscribers.filter(s => s.semester && parseInt(s.semester, 10) >= 1 && parseInt(s.semester, 10) <= 8).length;
 
-            state.examType = examType;
-            state.step = 'preview_github_questions';
+            const state = {
+                step: 'preview_github_questions',
+                semester: 'all',
+                semesterName: 'All Semesters (1st – 8th)',
+                examType,
+                studentCount: totalWithSem
+            };
             setFlowState(userId, state);
 
-            if (msgId) {
-                await callTelegram('editMessageText', {
-                    chat_id: userId,
-                    message_id: msgId,
-                    text: `⏳ <i>Scanning GitHub repository for ${state.semesterName} (${examType} Term) questions...</i>`,
-                    parse_mode: 'HTML'
-                });
-            }
-
-            const ghRes = await fetchGitHubQuestions(state.semester, examType);
-            if (!ghRes.ok || ghRes.files.length === 0) {
-                const errorText =
-                    `⚠️ <b>No question papers found in repository!</b>\n\n` +
-                    `Path: <code>Semester${state.semester}/PreviousQuestions/${examType}</code>\n\n` +
-                    `Please check that the repository has files in this folder.`;
-
-                if (msgId) {
-                    await callTelegram('editMessageText', {
-                        chat_id: userId,
-                        message_id: msgId,
-                        text: errorText,
-                        parse_mode: 'HTML',
-                        reply_markup: {
-                            inline_keyboard: [
-                                [{ text: '🔙 Back', callback_data: `admin_gh_sem_${state.semester}`, style: 'primary' }]
-                            ]
-                        }
-                    });
-                }
-                return { statusCode: 200, headers, body: '{"ok":true}' };
-            }
-
-            state.files = ghRes.files;
-            setFlowState(userId, state);
-
-            const fileListFormatted = ghRes.files.slice(0, 8).map(f => `• 📄 <code>${f.name}</code>`).join('\n');
             const previewText =
-                `📂 <b>GitHub Previous Questions Found!</b>\n\n` +
-                `• Semester: <b>${state.semesterName}</b>\n` +
-                `• Exam Type: <b>${examType} Term</b>\n` +
-                `• Question Papers: <b>${ghRes.files.length} PDFs found</b>\n` +
-                `• Target Students: <b>${state.studentCount} enrolled</b>\n\n` +
-                `<b>Files in Repository:</b>\n${fileListFormatted}` +
-                (ghRes.files.length > 8 ? `\n<i>...and ${ghRes.files.length - 8} more files</i>` : '') +
-                `\n\nChoose delivery option:`;
+                `📂 <b>Previous Questions: ${examType} Term (Semesters 1 – 8)</b>\n\n` +
+                `• Scope: <b>All registered students (1st – 8th Semester)</b>\n` +
+                `• Enrolled Students: <b>${totalWithSem} configured</b>\n` +
+                `• Exam Category: <b>${examType} Term</b>\n` +
+                `• Source: <b>GitHub Repository (${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME})</b>\n\n` +
+                `🎯 <b>Smart Dispatch Rule:</b>\n` +
+                `Every student automatically gets their specific semester's question papers from the repository.\n\n` +
+                `📄 <b>Caption on each PDF:</b>\n` +
+                `<code>auto delivered from : @iiuccseresourcebot</code>\n\n` +
+                `Choose delivery option:`;
 
             const keyboard = {
                 inline_keyboard: [
                     [
-                        { text: `🚀 Send Immediately to ${state.semesterName}`, callback_data: 'admin_gh_send_now', style: 'primary' }
+                        { text: '🚀 Send Immediately to All Semesters', callback_data: 'admin_gh_send_now', style: 'primary' }
                     ],
                     [
-                        { text: `⏰ Schedule Auto-Send Date & Time`, callback_data: 'admin_gh_sched_menu', style: 'primary' }
+                        { text: '⏰ Schedule Auto-Send Date & Time', callback_data: 'admin_gh_sched_menu', style: 'primary' }
                     ],
                     [
-                        { text: '❌ Cancel', callback_data: 'admin_menu', style: 'danger' }
+                        { text: '🔙 Back', callback_data: 'admin_gh_start', style: 'danger' }
                     ]
                 ]
             };
@@ -760,33 +704,35 @@ exports.handler = async (event) => {
                     parse_mode: 'HTML',
                     reply_markup: keyboard
                 });
+            } else {
+                await callTelegram('sendMessage', {
+                    chat_id: userId,
+                    text: previewText,
+                    parse_mode: 'HTML',
+                    reply_markup: keyboard
+                });
             }
             return { statusCode: 200, headers, body: '{"ok":true}' };
         }
 
-        // Send Immediately from GitHub
+        // Send Immediately from GitHub (All Semesters 1-8)
         if (data === 'admin_gh_send_now') {
-            const state = getFlowState(userId);
-            if (!state || !state.semester || !state.examType) {
-                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ Session expired.' });
-                return { statusCode: 200, headers, body: '{"ok":true}' };
-            }
-
+            const state = getFlowState(userId) || { semester: 'all', semesterName: 'All Semesters (1st – 8th)', examType: 'Mid' };
             setFlowState(userId, null);
 
             if (msgId) {
                 await callTelegram('editMessageText', {
                     chat_id: userId,
                     message_id: msgId,
-                    text: `⏳ <b>Delivering ${state.semesterName} ${state.examType} questions directly from GitHub...</b>\nPlease wait...`,
+                    text: `⏳ <b>Delivering ${state.examType || 'Mid'} Term questions directly from GitHub to each student according to their semester...</b>\nPlease wait...`,
                     parse_mode: 'HTML'
                 });
             }
 
             const taskObj = {
-                semester: state.semester,
-                semesterName: state.semesterName,
-                examType: state.examType,
+                semester: 'all',
+                semesterName: 'All Semesters (1st – 8th)',
+                examType: state.examType || 'Mid',
                 adminChatId: userId
             };
 
@@ -794,10 +740,9 @@ exports.handler = async (event) => {
 
             const report =
                 `✅ <b>Previous Questions Delivered from GitHub!</b>\n\n` +
-                `• Semester: <b>${state.semesterName}</b>\n` +
-                `• Exam Type: <b>${state.examType} Term</b>\n` +
-                `• Question Papers Sent: <b>${result.fileCount || 0} PDFs</b>\n` +
-                `• Successfully Delivered: <b>${result.success} students</b>\n` +
+                `• Scope: <b>All Semesters (1st – 8th)</b>\n` +
+                `• Exam Type: <b>${taskObj.examType} Term</b>\n` +
+                `• Delivered to: <b>${result.success} students</b> (each received their semester's papers)\n` +
                 `• Failed / Blocked: <b>${result.fail}</b>` +
                 (result.error ? `\n\n⚠️ <i>Note: ${result.error}</i>` : '');
 
@@ -816,18 +761,15 @@ exports.handler = async (event) => {
 
         // Step 4: Schedule Menu (Date & Time)
         if (data === 'admin_gh_sched_menu') {
-            const state = getFlowState(userId);
-            if (!state || !state.semester) {
-                await callTelegram('sendMessage', { chat_id: userId, text: '⚠️ Session expired.' });
-                return { statusCode: 200, headers, body: '{"ok":true}' };
-            }
-
+            const state = getFlowState(userId) || { semester: 'all', semesterName: 'All Semesters (1st – 8th)', examType: 'Mid' };
+            state.semester = 'all';
+            state.semesterName = 'All Semesters (1st – 8th)';
             state.step = 'waiting_for_schedule_time';
             setFlowState(userId, state);
 
             const text =
-                `⏰ <b>Schedule Auto-Send for ${state.semesterName} (${state.examType} Term)</b>\n\n` +
-                `When should the bot automatically send these previous question papers to students?\n\n` +
+                `⏰ <b>Schedule Auto-Send for All Semesters (1st – 8th) [${state.examType || 'Mid'} Term]</b>\n\n` +
+                `When should the bot automatically send the previous question papers to each student according to their specific semester?\n\n` +
                 `Tap a quick time below, OR reply in chat with a specific date & time (e.g. <code>tomorrow 10am</code>, <code>2026-10-15 14:00</code>, or <code>45m</code>):`;
 
             const keyboard = {
@@ -849,6 +791,7 @@ exports.handler = async (event) => {
                         { text: '🌙 Tomorrow 8:00 PM', callback_data: 'admin_gh_sched_tomorrow_8pm', style: 'primary' }
                     ],
                     [
+                        { text: '🔙 Back', callback_data: `admin_gh_exam_${state.examType || 'Mid'}`, style: 'primary' },
                         { text: '❌ Cancel', callback_data: 'admin_menu', style: 'danger' }
                     ]
                 ]
@@ -907,9 +850,9 @@ exports.handler = async (event) => {
             const newTask = {
                 id: 'task_' + Date.now(),
                 type: 'github_questions',
-                semester: state.semester,
-                semesterName: state.semesterName,
-                examType: state.examType,
+                semester: 'all',
+                semesterName: 'All Semesters (1st – 8th)',
+                examType: state.examType || 'Mid',
                 scheduledTime: targetTime,
                 scheduledTimeFormatted: targetDateStr,
                 adminChatId: userId,
@@ -923,11 +866,12 @@ exports.handler = async (event) => {
 
             const confirmText =
                 `✅ <b>Auto-Send Scheduled Successfully!</b>\n\n` +
-                `• Semester: <b>${state.semesterName}</b> (~${state.studentCount} students)\n` +
-                `• Exam Type: <b>${state.examType} Term</b>\n` +
+                `• Scope: <b>All Semesters (1st – 8th)</b>\n` +
+                `• Exam Type: <b>${newTask.examType} Term</b>\n` +
                 `• Delivery Date & Time: <b>${targetDateStr}</b> (${label})\n` +
                 `• Source: <b>GitHub Repository (${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME})</b>\n\n` +
-                `The bot will automatically fetch the previous question PDFs from GitHub and deliver them directly to all <b>${state.semesterName}</b> students when the time arrives.`;
+                `The bot will automatically fetch the previous question PDFs from GitHub and deliver each student's specific semester question papers to them when the time arrives.\n\n` +
+                `📄 <i>Caption on each PDF: auto delivered from : @iiuccseresourcebot</i>`;
 
             if (msgId) {
                 await callTelegram('editMessageText', {
@@ -1263,9 +1207,9 @@ exports.handler = async (event) => {
             const newTask = {
                 id: 'task_' + Date.now(),
                 type: 'github_questions',
-                semester: flowState.semester,
-                semesterName: flowState.semesterName,
-                examType: flowState.examType,
+                semester: 'all',
+                semesterName: 'All Semesters (1st – 8th)',
+                examType: flowState.examType || 'Mid',
                 scheduledTime: parsedTime,
                 scheduledTimeFormatted: targetDateStr,
                 adminChatId: userId,
@@ -1281,11 +1225,12 @@ exports.handler = async (event) => {
                 chat_id: userId,
                 text:
                     `✅ <b>Auto-Send Scheduled Successfully!</b>\n\n` +
-                    `• Semester: <b>${flowState.semesterName}</b> (~${flowState.studentCount} students)\n` +
-                    `• Exam Category: <b>${flowState.examType} Term</b>\n` +
+                    `• Scope: <b>All Semesters (1st – 8th)</b>\n` +
+                    `• Exam Category: <b>${newTask.examType} Term</b>\n` +
                     `• Scheduled Time: <b>${targetDateStr}</b>\n` +
                     `• Source: <b>GitHub Repository (${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME})</b>\n\n` +
-                    `The bot will automatically fetch the previous question PDFs from GitHub and deliver them to all <b>${flowState.semesterName}</b> students when the time arrives.`,
+                    `The bot will automatically deliver each student's specific semester question papers to them when the time arrives.\n\n` +
+                    `📄 <i>Caption on each file: auto delivered from : @iiuccseresourcebot</i>`,
                 parse_mode: 'HTML',
                 reply_markup: {
                     inline_keyboard: [
