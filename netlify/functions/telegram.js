@@ -398,6 +398,43 @@ function getAdminPanelPayload() {
     return { text, reply_markup };
 }
 
+// Pre-indexed verified catalog from GitHub repository 11UCRES/cse
+// Eliminates rate-limited GitHub API calls and allows instant zero-latency batch delivery
+const QUESTION_CATALOG = {
+    1: {
+        Mid: ["1st_Mid_Au23.pdf", "1st_Mid_Au25.pdf", "1st_Mid_Aut22.pdf", "1st_Mid_Sp22.pdf", "1st_Mid_Sp23.pdf", "1st_Mid_Sp25.pdf", "1st_Mid_Sp26.pdf", "1st_Mid_Spr24.pdf"],
+        Final: ["1st_Final_Au22.pdf", "1st_Final_Au23.pdf", "1st_Final_Au25.pdf", "1st_Final_Sp22.pdf", "1st_Final_Sp23.pdf", "1st_Final_Sp24.pdf", "1st_Final_Sp25.pdf", "1st_Final_Sp26.pdf"]
+    },
+    2: {
+        Mid: ["2nd_Mid_Au22.pdf", "2nd_Mid_Au23.pdf", "2nd_Mid_Au25.pdf", "2nd_Mid_Sp22.pdf", "2nd_Mid_Sp23.pdf", "2nd_Mid_Sp24.pdf", "2nd_Mid_Sp25.pdf", "2nd_Mid_Sp26.pdf"],
+        Final: ["2nd_Final_Au22.pdf", "2nd_Final_Au23.pdf", "2nd_Final_Au24.pdf", "2nd_Final_Au25.pdf", "2nd_Final_Sp22.pdf", "2nd_Final_Sp23.pdf", "2nd_Final_Sp24.pdf", "2nd_Final_Sp25.pdf"]
+    },
+    3: {
+        Mid: ["3rd_Mid_Au23.pdf", "3rd_Mid_Au25.pdf", "3rd_Mid_Sp22.pdf", "3rd_Mid_Sp23.pdf", "3rd_Mid_Sp24.pdf", "3rd_Mid_Sp25.pdf", "3rd_Mid_Sp26.pdf", "3rd_mid_Aut22.pdf"],
+        Final: ["3rd_FInal_Au25.pdf", "3rd_Final_Au22.pdf", "3rd_Final_Au23.pdf", "3rd_Final_Au24.pdf", "3rd_Final_Sp22.pdf", "3rd_Final_Sp23.pdf", "3rd_Final_Sp24.pdf", "3rd_Final_Sp25.pdf", "3rd_Final_Sp26.pdf"]
+    },
+    4: {
+        Mid: ["4th_Mid_Au21.pdf", "4th_Mid_Au22.pdf", "4th_Mid_Au23.pdf", "4th_Mid_Au25.pdf", "4th_Mid_Sp23.pdf", "4th_Mid_Sp24.pdf", "4th_Mid_Sp25.pdf"],
+        Final: ["4th_Final_Au21.pdf", "4th_Final_Au22.pdf", "4th_Final_Au23.pdf", "4th_Final_Au25.pdf", "4th_Final_Sp23.pdf", "4th_Final_Sp24.pdf", "4th_Final_Sp25.pdf", "4th_Final_Sp26.pdf"]
+    },
+    5: {
+        Mid: ["5th_Mid_Au23.pdf", "5th_Mid_Au25.pdf", "5th_Mid_Sp22.pdf", "5th_Mid_Sp23.pdf", "5th_Mid_Sp24.pdf", "5th_Mid_Sp25.pdf", "5th_Mid_Sp26.pdf"],
+        Final: ["5th_Final-Sp23.pdf", "5th_Final_Au23.pdf", "5th_Final_Au25.pdf", "5th_Final_Sp22.pdf", "5th_Final_Sp24.pdf", "5th_Final_Sp25.pdf", "5th_Final_Sp26.pdf"]
+    },
+    6: {
+        Mid: ["6th_Mid_Au21.pdf", "6th_Mid_Au22.pdf", "6th_Mid_Au25.pdf", "6th_Mid_Sp22.pdf", "6th_Mid_Sp24.pdf", "6th_Mid_Sp25.pdf", "6th_Mid_Sp26.pdf"],
+        Final: ["6th_Final_Au21.pdf", "6th_Final_Au22.pdf", "6th_Final_Au23.pdf", "6th_Final_Au24.pdf", "6th_Final_Au25.pdf", "6th_Final_Sp22.pdf", "6th_Final_Sp24.pdf", "6th_Final_Sp25.pdf"]
+    },
+    7: {
+        Mid: ["7th_Mid_Au21.pdf", "7th_Mid_Au22.pdf", "7th_Mid_Au25.pdf", "7th_Mid_Sp22.pdf", "7th_Mid_Sp23.pdf", "7th_Mid_Sp25.pdf", "7th_Mid_Sp26.pdf"],
+        Final: ["7th_Final_Au21.pdf", "7th_Final_Au22.pdf", "7th_Final_Au25.pdf", "7th_Final_Sp22.pdf", "7th_Final_Sp25.pdf"]
+    },
+    8: {
+        Mid: ["8th_Mid_Au25.pdf", "8th_Mid_Sp25.pdf", "8th_Mid_Sp26.pdf"],
+        Final: ["8th_Final_Sp25.pdf"]
+    }
+};
+
 // -------------------------------------------------------------
 // 4. AUTO-SEND BACKGROUND EXECUTION ENGINE (GITHUB QUESTIONS)
 // -------------------------------------------------------------
@@ -412,48 +449,89 @@ async function dispatchGitHubQuestionsToStudents(task) {
         return { success: 0, fail: 0, total: 0, error: 'No students have selected their semester yet.' };
     }
 
-    const semsToFetch = isAll ? [1, 2, 3, 4, 5, 6, 7, 8] : [parseInt(task.semester, 10)];
-    const repoQuestions = {};
-    let totalPdfs = 0;
-
-    for (const sem of semsToFetch) {
-        const ghRes = await fetchGitHubQuestions(sem, task.examType);
-        if (ghRes && ghRes.ok && Array.isArray(ghRes.files)) {
-            repoQuestions[sem] = ghRes.files;
-            totalPdfs += ghRes.files.length;
-        } else {
-            repoQuestions[sem] = [];
-        }
-    }
-
+    const cleanExam = (task.examType && task.examType.toLowerCase().includes('mid')) ? 'Mid' : 'Final';
     let successCount = 0;
     let failCount = 0;
+    let totalPdfsDispatched = 0;
 
     for (const sub of targetSubs) {
         const semNum = parseInt(sub.semester, 10);
-        const semFiles = repoQuestions[semNum] || [];
-        if (semFiles.length === 0) continue;
+        let filenames = (QUESTION_CATALOG[semNum] && QUESTION_CATALOG[semNum][cleanExam])
+            ? [...QUESTION_CATALOG[semNum][cleanExam]]
+            : [];
+
+        // Fallback: If catalog is somehow missing for this semester, dynamically fetch from GitHub
+        if (!filenames || filenames.length === 0) {
+            const ghRes = await fetchGitHubQuestions(semNum, cleanExam);
+            if (ghRes && ghRes.ok && Array.isArray(ghRes.files)) {
+                filenames = ghRes.files.map(f => f.name);
+            }
+        }
+
+        if (!filenames || filenames.length === 0) continue;
+
+        const fileUrls = filenames.map(name =>
+            `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/main/Semester${semNum}/PreviousQuestions/${cleanExam}/${encodeURIComponent(name)}`
+        );
 
         try {
-            // Deliver each PDF document from GitHub repository
-            for (const file of semFiles) {
-                const docUrl = file.download_url || `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/main/Semester${semNum}/PreviousQuestions/${task.examType}/${encodeURIComponent(file.name)}`;
+            if (fileUrls.length === 1) {
+                // Single PDF document send
                 await callTelegram('sendDocument', {
                     chat_id: sub.id,
-                    document: docUrl,
+                    document: fileUrls[0],
                     caption: 'auto delivered from : @iiuccseresourcebot'
                 });
-                await new Promise(r => setTimeout(r, 200));
+                totalPdfsDispatched += 1;
+            } else {
+                // Batch delivery: Telegram sendMediaGroup sends up to 10 PDF documents in 1 single API call
+                // This eliminates serverless 10-second timeouts and guarantees all files arrive instantly together
+                const chunkSize = 10;
+                for (let i = 0; i < fileUrls.length; i += chunkSize) {
+                    const chunk = fileUrls.slice(i, i + chunkSize);
+                    if (chunk.length === 1) {
+                        await callTelegram('sendDocument', {
+                            chat_id: sub.id,
+                            document: chunk[0],
+                            caption: 'auto delivered from : @iiuccseresourcebot'
+                        });
+                        totalPdfsDispatched += 1;
+                    } else {
+                        const media = chunk.map((url, idx) => ({
+                            type: 'document',
+                            media: url,
+                            caption: (i === 0 && idx === 0) ? 'auto delivered from : @iiuccseresourcebot' : ''
+                        }));
+
+                        const res = await callTelegram('sendMediaGroup', {
+                            chat_id: sub.id,
+                            media: media
+                        });
+
+                        // Fallback: If sendMediaGroup is rejected for any reason, send individually
+                        if (!res || !res.ok) {
+                            for (const docUrl of chunk) {
+                                await callTelegram('sendDocument', {
+                                    chat_id: sub.id,
+                                    document: docUrl,
+                                    caption: 'auto delivered from : @iiuccseresourcebot'
+                                });
+                                await new Promise(r => setTimeout(r, 150));
+                            }
+                        }
+                        totalPdfsDispatched += chunk.length;
+                    }
+                }
             }
 
             successCount++;
         } catch (e) {
+            console.error(`[DISPATCH] Error delivering files to user ${sub.id}:`, e.message);
             failCount++;
         }
-        await new Promise(r => setTimeout(r, 100));
     }
 
-    return { success: successCount, fail: failCount, total: targetSubs.length, fileCount: totalPdfs };
+    return { success: successCount, fail: failCount, total: targetSubs.length, fileCount: totalPdfsDispatched };
 }
 
 async function executeDueTasks() {
